@@ -1,0 +1,7 @@
+# Copiá este archivo a terraform.tfvars y completá los valores
+aws_region                 = "us-east-1"
+prefix                     = "breadboss"
+az_count                   = 2
+cognito_test_user_email    = "test@breadboss.com"
+cognito_test_user_password = "Test1234!"
+ses_sender_email           = "noreply@breadboss.com"
