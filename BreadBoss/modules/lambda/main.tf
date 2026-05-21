@@ -97,3 +97,39 @@ resource "aws_lambda_event_source_mapping" "msk" {
   starting_position = "LATEST"
   batch_size        = 10
 }
+
+# D3: despliega el código real de ingress y order-processor.
+# Se re-ejecuta automáticamente cuando cambia alguno de los handlers.
+locals {
+  lambdas_dir = "${path.root}/../lambdas"
+  d3_functions = {
+    ingress          = aws_lambda_function.this["ingress"].function_name
+    order-processor  = aws_lambda_function.this["order-processor"].function_name
+  }
+}
+
+resource "null_resource" "deploy_d3" {
+  triggers = {
+    ingress_hash         = filemd5("${local.lambdas_dir}/ingress/handler.py")
+    order_processor_hash = filemd5("${local.lambdas_dir}/order-processor/handler.py")
+  }
+
+  provisioner "local-exec" {
+    working_dir = local.lambdas_dir
+    command     = <<-EOT
+      bash package.sh
+      aws lambda update-function-code \
+        --function-name ${local.d3_functions["ingress"]} \
+        --zip-file fileb://ingress/ingress.zip \
+        --region ${var.aws_region} \
+        --no-cli-pager
+      aws lambda update-function-code \
+        --function-name ${local.d3_functions["order-processor"]} \
+        --zip-file fileb://order-processor/order-processor.zip \
+        --region ${var.aws_region} \
+        --no-cli-pager
+    EOT
+  }
+
+  depends_on = [aws_lambda_function.this]
+}
