@@ -1,0 +1,11 @@
+# Terraform
+BreadBoss/.terraform/
+BreadBoss/.terraform.lock.hcl
+BreadBoss/terraform.tfvars
+BreadBoss/terraform.tfstate
+BreadBoss/terraform.tfstate.backup
+BreadBoss/modules/lambda/stub/handler.zip
+
+# AWS credentials
+.aws/
+*.credentials
