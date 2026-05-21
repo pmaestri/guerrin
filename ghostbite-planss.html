@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GhostBite — Plan de Implementación (sin IaC)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a14;color:#eee;font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+  .header{background:linear-gradient(135deg,#1a0a2e,#0a1628,#1a0a0a);padding:28px 20px 22px;border-bottom:1px solid #333}
+  .header .tag{font-size:11px;color:#f59e0b;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+  .header h1{font-size:24px;font-weight:800;color:#fff}
+  .header .sub{font-size:13px;color:#777;margin-top:8px;line-height:1.6}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+  .day{margin-bottom:36px}
+  .day-header{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #222}
+  .day-num{width:44px;height:44px;min-width:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#000}
+  .day-title{font-size:18px;font-weight:700}
+  .day-subtitle{font-size:12px;color:#888;margin-top:2px}
+  .step{display:flex;gap:12px;margin-bottom:14px;padding:14px;background:#12121f;border-radius:10px;border:1px solid #1f1f33;transition:border-color .2s}
+  .step:hover{border-color:#333}
+  .step-icon{width:28px;height:28px;min-width:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#000;margin-top:2px}
+  .step-body{flex:1}
+  .step-title{font-size:14px;font-weight:600;color:#eee;margin-bottom:4px}
+  .step-desc{font-size:13px;color:#999;line-height:1.7}
+  .step-cmd{background:#0d1117;color:#c9d1d9;padding:10px 12px;border-radius:6px;font-size:11px;font-family:'SF Mono','Fira Code',monospace;margin-top:8px;overflow-x:auto;border:1px solid #30363d;white-space:pre-wrap;word-break:break-word}
+  .step-tip{background:#f59e0b11;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:0 6px 6px 0;margin-top:8px;font-size:12px;color:#fcd34d;line-height:1.5}
+  .step-console{background:#0f2e1e11;border-left:3px solid #34d399;padding:8px 12px;border-radius:0 6px 6px 0;margin-top:8px;font-size:12px;color:#6ee7b7;line-height:1.5}
+  .step-files{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .file-badge{background:#1e3a5f;color:#93c5fd;font-size:11px;padding:3px 10px;border-radius:4px;font-family:monospace}
+  .step-check{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .check{background:#0f2e1e;color:#6ee7b7;font-size:11px;padding:3px 10px;border-radius:4px}
+  .progress-bar{display:flex;gap:4px;margin-bottom:28px}
+  .progress-bar .seg{flex:1;height:6px;border-radius:3px}
+  .prereq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:12px;margin-bottom:28px}
+  .prereq{background:#1a1a2e;border-radius:8px;padding:12px;border:1px solid #333;text-align:center}
+  .prereq .pi{font-size:24px;margin-bottom:4px}
+  .prereq .pt{font-size:13px;font-weight:600;color:#eee}
+  .prereq .pd{font-size:11px;color:#888;margin-top:2px}
+  .section-note{background:#1a1a2e;border:1px solid #333;border-radius:10px;padding:16px;margin-bottom:24px;font-size:13px;color:#bbb;line-height:1.7}
+  .section-note strong{color:#f59e0b}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">Plan de Implementación Paso a Paso</div>
+  <h1>🍔 GhostBite — Dark Kitchen</h1>
+  <div class="sub">Todo creado desde la consola de AWS y AWS CLI. Sin Terraform, sin GitOps. Foco en arquitectura y servicios.</div>
+</div>
+
+<div class="wrap">
+
+<!-- NOTA -->
+<div class="section-note">
+  <strong>Enfoque:</strong> toda la infraestructura se crea desde la <strong>consola web de AWS</strong> o con <strong>AWS CLI</strong>. El código de las Lambdas se sube directamente con un .zip o desde el editor inline de la consola. El repo de GitHub se usa solo para versionar el código, sin pipelines automatizados.
+</div>
+
+<!-- ===== PREREQUISITOS ===== -->
+<h2 style="color:#f59e0b;font-size:20px;margin-bottom:6px">🔧 Paso 0 — Prerequisitos</h2>
+<p style="color:#888;font-size:13px;margin-bottom:12px">Lo mínimo que necesitás antes de arrancar.</p>
+<div class="prereq-grid">
+  <div class="prereq"><div class="pi">☁️</div><div class="pt">Cuenta AWS</div><div class="pd">Free tier o AWS Academy. Usuario IAM con permisos de admin.</div></div>
+  <div class="prereq"><div class="pi">📦</div><div class="pt">AWS CLI v2</div><div class="pd">Configurado con aws configure (access key + region us-east-1)</div></div>
+  <div class="prereq"><div class="pi">🐍</div><div class="pt">Python 3.11+ o Node 20+</div><div class="pd">Para escribir las funciones Lambda</div></div>
+  <div class="prereq"><div class="pi">🐙</div><div class="pt">Git + GitHub</div><div class="pd">Para versionar el código (sin CI/CD)</div></div>
+  <div class="prereq"><div class="pi">📝</div><div class="pt">VS Code</div><div class="pd">Extensiones: AWS Toolkit, Python</div></div>
+  <div class="prereq"><div class="pi">🎨</div><div class="pt">Draw.io</div><div class="pd">Para diagramas C4 y de secuencia (gratis)</div></div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-bar">
+  <div class="seg" style="background:#60a5fa"></div>
+  <div class="seg" style="background:#a78bfa"></div>
+  <div class="seg" style="background:#f59e0b"></div>
+  <div class="seg" style="background:#34d399"></div>
+  <div class="seg" style="background:#fb7185"></div>
+  <div class="seg" style="background:#fbbf24"></div>
+</div>
+
+<!-- ===== DÍA 1 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#60a5fa">D1</div>
+    <div><div class="day-title" style="color:#60a5fa">Diseño, Documentación y Repo</div><div class="day-subtitle">Lunes — 4 a 5 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">1</div>
+    <div class="step-body">
+      <div class="step-title">Crear el repositorio del proyecto</div>
+      <div class="step-desc">Estructura simple: carpeta por Lambda, carpeta para documentación.</div>
+      <div class="step-cmd">mkdir ghostbite && cd ghostbite && git init
+mkdir -p lambdas/{ingress,order-processor,kitchen-manager,stock-updater,delivery-tracker,notifier}
+mkdir -p docs/{adr,diagrams}
+touch README.md .gitignore</div>
+      <div class="step-files">
+        <span class="file-badge">lambdas/</span>
+        <span class="file-badge">docs/</span>
+        <span class="file-badge">README.md</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">2</div>
+    <div class="step-body">
+      <div class="step-title">Escribir el caso de negocio en el README</div>
+      <div class="step-desc">Explicá qué es GhostBite, qué problema resuelve, cuáles son los canales de entrada y por qué elegiste una arquitectura event-driven. 1-2 páginas alcanza. Incluí una sección "¿Por qué no un monolito?" para mostrar que evaluaste alternativas.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">3</div>
+    <div class="step-body">
+      <div class="step-title">Diagrama C4 — Nivel 1: Contexto</div>
+      <div class="step-desc">En draw.io, dibujá GhostBite en el centro rodeado de los actores (Cliente, Cocinero, Repartidor) y sistemas externos (WhatsApp API, Marketplace API, Payment Gateway). Flechas con la interacción entre cada uno.</div>
+      <div class="step-console">🖥️ Consola: Abrí app.diagrams.net → Nuevo → Blank. Usá los shapes de C4 (Extras → Template → C4).</div>
+      <div class="step-files"><span class="file-badge">docs/diagrams/c4-contexto.drawio</span><span class="file-badge">docs/diagrams/c4-contexto.png</span></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">4</div>
+    <div class="step-body">
+      <div class="step-title">Diagrama C4 — Nivel 2: Contenedores</div>
+      <div class="step-desc">Abrí el sistema y mostrá los contenedores: API Gateway, Lambda Ingress, MSK Cluster, cada Lambda consumer, DynamoDB, ElastiCache Redis, SNS/SES, WebSocket API, S3, CloudWatch. Este es el diagrama más importante del TP.</div>
+      <div class="step-tip">💡 Usá colores consistentes: violeta para ingress, naranja para Kafka, verde para consumers, rosa para storage, celeste para notificaciones. Esto demuestra pensamiento visual.</div>
+      <div class="step-files"><span class="file-badge">docs/diagrams/c4-contenedores.drawio</span><span class="file-badge">docs/diagrams/c4-contenedores.png</span></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">5</div>
+    <div class="step-body">
+      <div class="step-title">Escribir los ADRs (Architecture Decision Records)</div>
+      <div class="step-desc">3-4 archivos markdown. Cada uno: Contexto → Decisión → Consecuencias. Los profes quieren ver que justificás cada elección, no que "usaste X porque sí".</div>
+      <div class="step-cmd"># docs/adr/001-kafka-vs-sqs.md
+## ADR-001: Usar Amazon MSK (Kafka) en lugar de SQS
+
+### Contexto
+Necesitamos un bus de eventos que soporte múltiples 
+consumidores del mismo mensaje (fan-out nativo) con 
+orden garantizado por partición.
+
+### Decisión
+MSK porque:
+- Fan-out nativo con consumer groups (SQS necesitaría SNS+SQS por cada consumer)
+- Orden garantizado por partition key (orderId)
+- Retención de mensajes para replay en caso de error
+- Throughput alto para picos
+
+### Consecuencias
+- Mayor complejidad que SQS
+- Costo base más alto (brokers always-on vs pay-per-message)
+- Requiere VPC y networking dedicado</div>
+      <div class="step-files">
+        <span class="file-badge">docs/adr/001-kafka-vs-sqs.md</span>
+        <span class="file-badge">docs/adr/002-dynamodb-vs-rds.md</span>
+        <span class="file-badge">docs/adr/003-serverless-vs-ecs.md</span>
+        <span class="file-badge">docs/adr/004-redis-para-estado.md</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#60a5fa">✓</div>
+    <div class="step-body">
+      <div class="step-title">Checkpoint del Día 1</div>
+      <div class="step-check">
+        <span class="check">✔ Repo con estructura</span>
+        <span class="check">✔ README con caso de negocio</span>
+        <span class="check">✔ Diagrama C4 contexto</span>
+        <span class="check">✔ Diagrama C4 contenedores</span>
+        <span class="check">✔ 3-4 ADRs</span>
+        <span class="check">✔ git push</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DÍA 2 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#a78bfa">D2</div>
+    <div><div class="day-title" style="color:#a78bfa">Crear Infraestructura en AWS (Consola + CLI)</div><div class="day-subtitle">Martes — 4 a 6 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">1</div>
+    <div class="step-body">
+      <div class="step-title">Crear la VPC con subnets</div>
+      <div class="step-desc">MSK y ElastiCache necesitan VPC. Creá una con el wizard de la consola que genera todo automáticamente.</div>
+      <div class="step-console">🖥️ Consola: VPC → Create VPC → "VPC and more" → Name: ghostbite → 2 AZs → 2 public + 2 private subnets → NAT Gateway: In 1 AZ → Create.</div>
+      <div class="step-tip">💡 El wizard "VPC and more" te crea subnets, route tables, internet gateway y NAT gateway en un click. Ahorrás 30 minutos.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">2</div>
+    <div class="step-body">
+      <div class="step-title">Crear el cluster MSK Serverless</div>
+      <div class="step-desc">MSK Serverless es la opción más simple y barata para un TP. No tenés que elegir instancias ni gestionar brokers.</div>
+      <div class="step-console">🖥️ Consola: Amazon MSK → Create cluster → Serverless → Name: ghostbite-kafka → Seleccioná la VPC ghostbite y las 2 subnets privadas → IAM authentication → Create.</div>
+      <div class="step-desc" style="margin-top:8px">Después de crearlo (tarda ~15 min), anotá el <strong style="color:#fcd34d">Bootstrap servers</strong> del panel "View client information". Lo vas a necesitar en las Lambdas.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">3</div>
+    <div class="step-body">
+      <div class="step-title">Crear las tablas DynamoDB</div>
+      <div class="step-desc">Dos tablas: Orders y Menu.</div>
+      <div class="step-console">🖥️ Consola: DynamoDB → Create table<br/>
+        • Table 1: Name=ghostbite-orders, PK=orderId (String), SK=timestamp (Number), Settings=On-demand<br/>
+        • Table 2: Name=ghostbite-menu, PK=itemId (String), Settings=On-demand</div>
+      <div class="step-desc" style="margin-top:8px">Después de crear Orders, agregá los GSIs:</div>
+      <div class="step-console">🖥️ Consola: ghostbite-orders → Indexes tab → Create index<br/>
+        • GSI 1: PK=channel (String), SK=timestamp (Number), name=channel-index<br/>
+        • GSI 2: PK=status (String), SK=timestamp (Number), name=status-index</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">4</div>
+    <div class="step-body">
+      <div class="step-title">Crear Cognito User Pool</div>
+      <div class="step-desc">Para autenticar a los clientes que usan la API.</div>
+      <div class="step-console">🖥️ Consola: Cognito → Create user pool → Email sign-in → Default password policy → No MFA (para simplificar) → Name: ghostbite-users → Create.<br/><br/>
+      Después: App integration tab → Create app client → Name: ghostbite-app → Auth flows: ALLOW_USER_PASSWORD_AUTH → Create.</div>
+      <div class="step-desc" style="margin-top:8px">Anotá: <strong style="color:#fcd34d">User Pool ID</strong> y <strong style="color:#fcd34d">App Client ID</strong>. Crea un usuario de test:</div>
+      <div class="step-cmd">aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_XXXXX \
+  --username test@ghostbite.com \
+  --temporary-password Test1234!
+
+aws cognito-idp admin-set-user-password \
+  --user-pool-id us-east-1_XXXXX \
+  --username test@ghostbite.com \
+  --password Test1234! \
+  --permanent</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">5</div>
+    <div class="step-body">
+      <div class="step-title">Crear bucket S3</div>
+      <div class="step-console">🖥️ Consola: S3 → Create bucket → Name: ghostbite-assets-{tu-nombre} → Region: us-east-1 → Block all public access → Create.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">6</div>
+    <div class="step-body">
+      <div class="step-title">Crear ElastiCache Redis</div>
+      <div class="step-console">🖥️ Consola: ElastiCache → Create → Redis OSS → Serverless (más simple) o Design your own con cache.t3.micro → Name: ghostbite-cache → VPC: ghostbite → Subnet group: las privadas → Create.</div>
+      <div class="step-desc" style="margin-top:8px">Anotá el <strong style="color:#fcd34d">Primary Endpoint</strong>.</div>
+      <div class="step-tip">💡 Si querés simplificar aún más, podés reemplazar Redis por DynamoDB para el estado del pedido. Perdés velocidad pero ganás simplicidad. Documentalo como trade-off en un ADR.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">7</div>
+    <div class="step-body">
+      <div class="step-title">Crear el IAM Role para las Lambdas</div>
+      <div class="step-desc">Un rol que las Lambdas asumen, con permisos para DynamoDB, MSK, ElastiCache, CloudWatch, SNS, SES y VPC.</div>
+      <div class="step-console">🖥️ Consola: IAM → Roles → Create role → Lambda → Attach policies:<br/>
+        • AmazonDynamoDBFullAccess<br/>
+        • AmazonMSKFullAccess<br/>
+        • AmazonElastiCacheFullAccess<br/>
+        • AmazonSNSFullAccess<br/>
+        • AmazonSESFullAccess<br/>
+        • CloudWatchLogsFullAccess<br/>
+        • AWSLambdaVPCAccessExecutionRole<br/>
+        → Name: ghostbite-lambda-role → Create.</div>
+      <div class="step-tip">💡 En producción usarías least-privilege. Para el TP, FullAccess está bien pero mencioná en la documentación que en prod lo restringirías.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#a78bfa">✓</div>
+    <div class="step-body">
+      <div class="step-title">Checkpoint del Día 2</div>
+      <div class="step-check">
+        <span class="check">✔ VPC con subnets</span>
+        <span class="check">✔ MSK Serverless corriendo</span>
+        <span class="check">✔ DynamoDB tables + GSIs</span>
+        <span class="check">✔ Cognito User Pool + test user</span>
+        <span class="check">✔ S3 bucket</span>
+        <span class="check">✔ ElastiCache Redis</span>
+        <span class="check">✔ IAM Role para Lambdas</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DÍA 3 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#f59e0b">D3</div>
+    <div><div class="day-title" style="color:#f59e0b">Lambda Ingress + API Gateway + Primer Consumer</div><div class="day-subtitle">Miércoles — 5 a 7 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">1</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar la Lambda Ingress</div>
+      <div class="step-desc">Recibe el POST, valida el pedido, genera orderId y publica al topic "pedidos" de Kafka. Escribí el código localmente.</div>
+      <div class="step-cmd"># lambdas/ingress/handler.py
+import json, os, uuid, base64
+from datetime import datetime
+from kafka import KafkaProducer
+from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+
+def get_producer():
+    """Crea producer con IAM auth para MSK Serverless"""
+    tp = MSKAuthTokenProvider(region=os.environ['AWS_REGION'])
+    return KafkaProducer(
+        bootstrap_servers=os.environ['MSK_BOOTSTRAP'].split(','),
+        security_protocol='SASL_SSL',
+        sasl_mechanism='OAUTHBEARER',
+        sasl_oauth_token_provider=tp,
+        value_serializer=lambda v: json.dumps(v).encode()
+    )
+
+def handler(event, context):
+    body = json.loads(event['body'])
+    
+    # Validar campos
+    for field in ['items', 'deliveryAddress']:
+        if field not in body:
+            return {'statusCode': 400,
+                    'body': json.dumps({'error': f'Falta {field}'})}
+    
+    # Extraer customerId del JWT (viene de Cognito)
+    customer_id = event['requestContext']['authorizer']['jwt']['claims']['sub']
+    
+    # Generar evento
+    order_id = str(uuid.uuid4())
+    order_event = {
+        'eventType': 'ORDER_CREATED',
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'data': {
+            'orderId': order_id,
+            'channel': body.get('channel', 'app'),
+            'customerId': customer_id,
+            'items': body['items'],
+            'total': sum(i['price'] * i['qty'] for i in body['items']),
+            'deliveryAddress': body['deliveryAddress'],
+            'status': 'RECIBIDO'
+        }
+    }
+    
+    # Publicar a Kafka
+    producer = get_producer()
+    producer.send('pedidos', key=order_id.encode(), value=order_event)
+    producer.flush()
+    
+    return {
+        'statusCode': 201,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps({
+            'orderId': order_id,
+            'status': 'RECIBIDO',
+            'message': 'Pedido recibido!'
+        })
+    }</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">2</div>
+    <div class="step-body">
+      <div class="step-title">Empaquetar y subir la Lambda Ingress</div>
+      <div class="step-desc">Instalá las dependencias en la carpeta y hacé un .zip para subir a AWS.</div>
+      <div class="step-cmd">cd lambdas/ingress
+pip install kafka-python-ng aws-msk-iam-sasl-signer-python -t ./package
+cd package && zip -r ../ingress.zip . && cd ..
+zip ingress.zip handler.py</div>
+      <div class="step-console">🖥️ Consola: Lambda → Create function → Name: ghostbite-ingress → Runtime: Python 3.11 → Role: ghostbite-lambda-role → Create.<br/><br/>
+        Después: Upload .zip → Subí ingress.zip.<br/><br/>
+        Configuration → Environment variables:<br/>
+        • MSK_BOOTSTRAP = (el bootstrap server que anotaste)<br/>
+        • AWS_REGION_NAME = us-east-1<br/><br/>
+        Configuration → VPC → Seleccioná la VPC ghostbite y las subnets privadas + el security group del MSK.<br/><br/>
+        Configuration → General → Timeout: 30 seconds, Memory: 256 MB.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">3</div>
+    <div class="step-body">
+      <div class="step-title">Crear API Gateway HTTP API</div>
+      <div class="step-desc">API HTTP con Cognito authorizer y ruta POST /orders integrada a la Lambda Ingress.</div>
+      <div class="step-console">🖥️ Consola: API Gateway → Create API → HTTP API → Name: ghostbite-api<br/><br/>
+        Routes → Create → POST /orders<br/><br/>
+        Authorization → Manage authorizers → Create → JWT → Name: cognito-auth → Issuer URL: https://cognito-idp.us-east-1.amazonaws.com/{pool-id} → Audience: {app-client-id}<br/><br/>
+        Attach authorizer a la ruta POST /orders.<br/><br/>
+        Integrations → POST /orders → Lambda → ghostbite-ingress<br/><br/>
+        Deploy → Stage: $default → Copiar la Invoke URL.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">4</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar y subir el consumer OrderProcessor</div>
+      <div class="step-desc">Lee del topic "pedidos" (trigger MSK) y escribe en DynamoDB.</div>
+      <div class="step-cmd"># lambdas/order-processor/handler.py
+import json, boto3, base64, time
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('ghostbite-orders')
+
+def handler(event, context):
+    for topic, records in event['records'].items():
+        for record in records:
+            payload = json.loads(
+                base64.b64decode(record['value']).decode()
+            )
+            data = payload['data']
+            
+            table.put_item(Item={
+                'orderId':         data['orderId'],
+                'timestamp':       int(time.time()),
+                'channel':         data['channel'],
+                'status':          data['status'],
+                'customerId':      data['customerId'],
+                'items':           data['items'],
+                'total':           str(data['total']),  # DynamoDB no acepta float
+                'deliveryAddress': data['deliveryAddress'],
+                'timestamps': {
+                    'received': payload['timestamp']
+                }
+            })
+            print(f"Order {data['orderId']} saved to DynamoDB")
+    
+    return {'statusCode': 200}</div>
+      <div class="step-console">🖥️ Consola: Lambda → Create function → Name: ghostbite-order-processor → Python 3.11 → Role: ghostbite-lambda-role → Create → Upload .zip<br/><br/>
+        VPC: misma config que ingress.<br/><br/>
+        Triggers → Add trigger → MSK → Cluster: ghostbite-kafka → Topic: pedidos → Batch size: 10 → Starting position: Latest → Add.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">5</div>
+    <div class="step-body">
+      <div class="step-title">🧪 Test end-to-end: POST → Kafka → DynamoDB</div>
+      <div class="step-desc">El momento de la verdad. Hacé un POST y verificá que el pedido llega a DynamoDB.</div>
+      <div class="step-cmd"># 1. Obtener token JWT de Cognito
+TOKEN=$(aws cognito-idp initiate-auth \
+  --client-id TU_CLIENT_ID \
+  --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters USERNAME=test@ghostbite.com,PASSWORD=Test1234! \
+  --query 'AuthenticationResult.IdToken' --output text)
+
+# 2. Crear un pedido
+curl -X POST https://XXXXX.execute-api.us-east-1.amazonaws.com/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel": "app",
+    "items": [
+      {"itemId":"burger_01","name":"Smash Burger","qty":2,"price":4500},
+      {"itemId":"fries_01","name":"Papas Cajún","qty":1,"price":2200}
+    ],
+    "deliveryAddress": {
+      "lat": -34.6037,
+      "lng": -58.3816,
+      "street": "Av. Corrientes 1234"
+    }
+  }'
+
+# 3. Verificar en DynamoDB
+aws dynamodb scan --table-name ghostbite-orders \
+  --query 'Items[0].{id:orderId,status:status,total:total}' \
+  --output table</div>
+      <div class="step-tip">💡 Si esto funciona, ya tenés el 60% del TP resuelto. El flujo core Canal → API GW → Kafka → Consumer → DB está andando.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#f59e0b">✓</div>
+    <div class="step-body">
+      <div class="step-title">Checkpoint del Día 3</div>
+      <div class="step-check">
+        <span class="check">✔ Lambda Ingress desplegada</span>
+        <span class="check">✔ API Gateway con Cognito</span>
+        <span class="check">✔ OrderProcessor con trigger MSK</span>
+        <span class="check">✔ Test E2E pasando ✅</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DÍA 4 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#34d399">D4</div>
+    <div><div class="day-title" style="color:#34d399">Consumers Restantes + Redis + WebSocket</div><div class="day-subtitle">Jueves — 5 a 7 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">1</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar KitchenManager consumer</div>
+      <div class="step-desc">Consume de "pedidos", actualiza estado en Redis a EN_PREPARACIÓN, agrega a la cola de cocina.</div>
+      <div class="step-cmd"># lambdas/kitchen-manager/handler.py
+import json, os, base64, redis
+from datetime import datetime
+
+r = redis.Redis(host=os.environ['REDIS_HOST'], port=6379, ssl=True)
+
+def handler(event, context):
+    for topic, records in event['records'].items():
+        for record in records:
+            payload = json.loads(base64.b64decode(record['value']).decode())
+            data = payload['data']
+            order_id = data['orderId']
+            
+            # Estado en Redis
+            r.hset(f"order:{order_id}", mapping={
+                'status': 'EN_PREPARACION',
+                'updated_at': datetime.utcnow().isoformat(),
+                'items': json.dumps(data['items'])
+            })
+            r.expire(f"order:{order_id}", 7200)
+            
+            # Cola de cocina
+            r.lpush("kitchen:queue", order_id)
+            print(f"Order {order_id} → kitchen queue")
+    
+    return {'statusCode': 200}</div>
+      <div class="step-console">🖥️ Consola: Lambda → Create → ghostbite-kitchen-manager → misma config. Env var: REDIS_HOST. Trigger: MSK → topic: pedidos.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">2</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar StockUpdater consumer</div>
+      <div class="step-desc">Consume de "pedidos", descuenta stock de cada item en DynamoDB (tabla Menu). Si stock < 5, logea una alerta.</div>
+      <div class="step-cmd"># lambdas/stock-updater/handler.py
+import json, boto3, base64
+
+dynamodb = boto3.resource('dynamodb')
+menu_table = dynamodb.Table('ghostbite-menu')
+
+def handler(event, context):
+    for topic, records in event['records'].items():
+        for record in records:
+            payload = json.loads(base64.b64decode(record['value']).decode())
+            for item in payload['data']['items']:
+                menu_table.update_item(
+                    Key={'itemId': item['itemId']},
+                    UpdateExpression='SET stock = stock - :qty',
+                    ExpressionAttributeValues={':qty': item['qty']},
+                    ReturnValues='UPDATED_NEW'
+                )
+    return {'statusCode': 200}</div>
+      <div class="step-console">🖥️ Consola: Lambda → Create → ghostbite-stock-updater. Trigger: MSK → topic: pedidos.</div>
+      <div class="step-tip">💡 Cargá algunos items de test en la tabla Menu antes de probar: burger_01 con stock=100, fries_01 con stock=50, etc.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">3</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar DeliveryTracker consumer</div>
+      <div class="step-desc">Consume de "pedidos", simula asignación de repartidor, actualiza Redis con EN_CAMINO. En un sistema real acá irían las coordenadas GPS.</div>
+      <div class="step-cmd"># lambdas/delivery-tracker/handler.py
+import json, os, base64, redis, random
+
+r = redis.Redis(host=os.environ['REDIS_HOST'], port=6379, ssl=True)
+DRIVERS = ['driver_01', 'driver_02', 'driver_03', 'driver_04']
+
+def handler(event, context):
+    for topic, records in event['records'].items():
+        for record in records:
+            payload = json.loads(base64.b64decode(record['value']).decode())
+            data = payload['data']
+            order_id = data['orderId']
+            
+            # Asignar repartidor (round-robin simplificado)
+            driver = random.choice(DRIVERS)
+            
+            r.hset(f"order:{order_id}", mapping={
+                'status': 'EN_CAMINO',
+                'driver': driver
+            })
+            print(f"Order {order_id} assigned to {driver}")
+    
+    return {'statusCode': 200}</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">4</div>
+    <div class="step-body">
+      <div class="step-title">Crear WebSocket API para tracking en vivo</div>
+      <div class="step-desc">Para que el cliente pueda conectarse y ver el estado de su pedido en tiempo real.</div>
+      <div class="step-console">🖥️ Consola: API Gateway → Create API → WebSocket API → Name: ghostbite-ws → Route selection: $request.body.action → Create.<br/><br/>
+        Routes: $connect, $disconnect, getStatus → integrar cada una con una Lambda simple que lea el estado de Redis.</div>
+      <div class="step-tip">💡 Si el WebSocket te complica, es válido dejarlo como diseño en el diagrama y explicar cómo funcionaría. Mencioná que usarías @connections de API GW para pushear desde las Lambdas.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">5</div>
+    <div class="step-body">
+      <div class="step-title">Test: verificar todos los consumers</div>
+      <div class="step-desc">Creá un pedido y chequeá que los 4 consumers procesaron el evento.</div>
+      <div class="step-cmd"># Verificar DynamoDB (OrderProcessor)
+aws dynamodb scan --table-name ghostbite-orders
+
+# Verificar Redis (KitchenManager + DeliveryTracker)
+# Desde la consola de ElastiCache o con redis-cli
+redis-cli -h TU_ENDPOINT --tls
+> HGETALL order:TU_ORDER_ID
+> LRANGE kitchen:queue 0 -1
+
+# Verificar Menu stock (StockUpdater)
+aws dynamodb get-item --table-name ghostbite-menu \
+  --key '{"itemId":{"S":"burger_01"}}' \
+  --query 'Item.stock'
+
+# Verificar logs de todas las Lambdas
+aws logs tail /aws/lambda/ghostbite-kitchen-manager --since 5m
+aws logs tail /aws/lambda/ghostbite-stock-updater --since 5m
+aws logs tail /aws/lambda/ghostbite-delivery-tracker --since 5m</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#34d399">✓</div>
+    <div class="step-body">
+      <div class="step-title">Checkpoint del Día 4</div>
+      <div class="step-check">
+        <span class="check">✔ KitchenManager → Redis</span>
+        <span class="check">✔ StockUpdater → DynamoDB Menu</span>
+        <span class="check">✔ DeliveryTracker → Redis</span>
+        <span class="check">✔ WebSocket (al menos diseño)</span>
+        <span class="check">✔ 4 consumers procesando en paralelo</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DÍA 5 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#fb7185">D5</div>
+    <div><div class="day-title" style="color:#fb7185">Notificaciones + Observabilidad</div><div class="day-subtitle">Viernes — 4 a 6 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">1</div>
+    <div class="step-body">
+      <div class="step-title">Configurar SNS y SES</div>
+      <div class="step-console">🖥️ Consola: SNS → Create topic → Standard → Name: ghostbite-notifications → Create.<br/>
+        Después: Create subscription → Email → tu email → Confirm en el email que te llega.<br/><br/>
+        SES → Identities → Create identity → Email → noreply@tudominio.com (o tu email personal para sandbox) → Verify.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">2</div>
+    <div class="step-body">
+      <div class="step-title">Desarrollar Notifier consumer</div>
+      <div class="step-desc">Consume de "pedidos" y envía notificaciones según el tipo de evento.</div>
+      <div class="step-cmd"># lambdas/notifier/handler.py
+import json, boto3, os, base64
+
+sns = boto3.client('sns')
+ses = boto3.client('ses')
+TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
+SENDER = os.environ['SES_SENDER']
+
+def handler(event, context):
+    for topic, records in event['records'].items():
+        for record in records:
+            payload = json.loads(base64.b64decode(record['value']).decode())
+            data = payload['data']
+            
+            # Push via SNS
+            sns.publish(
+                TopicArn=TOPIC_ARN,
+                Subject=f"Pedido {data['orderId'][:8]}",
+                Message=f"Tu pedido fue recibido!\n"
+                        f"Items: {len(data['items'])}\n"
+                        f"Total: ${data['total']}\n"
+                        f"Estado: {data['status']}"
+            )
+            
+            # Email via SES (en sandbox, ambos emails deben estar verificados)
+            ses.send_email(
+                Source=SENDER,
+                Destination={'ToAddresses': ['test@ghostbite.com']},
+                Message={
+                    'Subject': {'Data': f'Confirmación pedido {data["orderId"][:8]}'},
+                    'Body': {'Text': {'Data': f'Gracias por tu pedido! Total: ${data["total"]}'}}
+                }
+            )
+    return {'statusCode': 200}</div>
+      <div class="step-console">🖥️ Consola: Lambda → Create → ghostbite-notifier. Env vars: SNS_TOPIC_ARN, SES_SENDER. Trigger: MSK → topic: pedidos.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">3</div>
+    <div class="step-body">
+      <div class="step-title">Habilitar X-Ray en todas las Lambdas</div>
+      <div class="step-console">🖥️ Consola: Para CADA Lambda → Configuration → Monitoring → Enhanced monitoring → Enable X-Ray tracing ✅</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">4</div>
+    <div class="step-body">
+      <div class="step-title">Agregar métricas custom desde las Lambdas</div>
+      <div class="step-desc">En la Lambda Ingress y OrderProcessor, publicá métricas custom a CloudWatch.</div>
+      <div class="step-cmd"># Agregar al final de handler.py de ingress
+import boto3
+cw = boto3.client('cloudwatch')
+
+cw.put_metric_data(
+    Namespace='GhostBite',
+    MetricData=[{
+        'MetricName': 'OrdersCreated',
+        'Value': 1,
+        'Unit': 'Count',
+        'Dimensions': [{'Name': 'Channel', 'Value': data['channel']}]
+    }]
+)</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">5</div>
+    <div class="step-body">
+      <div class="step-title">Crear Dashboard en CloudWatch</div>
+      <div class="step-console">🖥️ Consola: CloudWatch → Dashboards → Create → Name: GhostBite-Operations<br/><br/>
+        Agregá widgets:<br/>
+        • Lambda Invocations (todas las funciones) — Line chart<br/>
+        • Lambda Errors (todas) — Line chart<br/>
+        • Lambda Duration (todas) — Line chart<br/>
+        • Custom: GhostBite/OrdersCreated — Number<br/>
+        • DynamoDB ConsumedReadCapacityUnits — Line chart</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">6</div>
+    <div class="step-body">
+      <div class="step-title">Crear Alarmas</div>
+      <div class="step-console">🖥️ Consola: CloudWatch → Alarms → Create<br/>
+        • Alarma 1: Lambda Errors > 1 en 5 min → SNS notification<br/>
+        • Alarma 2: Lambda Duration > 5000ms → SNS notification</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">7</div>
+    <div class="step-body">
+      <div class="step-title">Diagrama de secuencia</div>
+      <div class="step-desc">Con Mermaid (en el README) o draw.io, dibujá el flujo completo del pedido mostrando cada componente.</div>
+      <div class="step-cmd">sequenceDiagram
+    participant C as Cliente
+    participant AG as API Gateway
+    participant CO as Cognito
+    participant LI as Lambda Ingress
+    participant K as Kafka (MSK)
+    participant OP as OrderProcessor
+    participant KM as KitchenManager
+    participant SU as StockUpdater
+    participant DT as DeliveryTracker
+    participant N as Notifier
+    participant DB as DynamoDB
+    participant R as Redis
+    
+    C->>AG: POST /orders (JWT)
+    AG->>CO: Validate token
+    CO-->>AG: ✅ Valid
+    AG->>LI: Invoke
+    LI->>K: Publish → pedidos
+    
+    par Consumers en paralelo
+        K->>OP: Consume
+        OP->>DB: PutItem (order)
+        K->>KM: Consume
+        KM->>R: HSET status=EN_PREP
+        K->>SU: Consume
+        SU->>DB: UpdateItem (stock--)
+        K->>DT: Consume
+        DT->>R: HSET driver=XXX
+        K->>N: Consume
+        N->>C: 📱 Push + 📧 Email
+    end</div>
+      <div class="step-files"><span class="file-badge">docs/diagrams/sequence.mmd</span></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fb7185">✓</div>
+    <div class="step-body">
+      <div class="step-title">Checkpoint del Día 5</div>
+      <div class="step-check">
+        <span class="check">✔ Notifier → SNS + SES</span>
+        <span class="check">✔ X-Ray en todas las Lambdas</span>
+        <span class="check">✔ Métricas custom publicando</span>
+        <span class="check">✔ Dashboard CloudWatch</span>
+        <span class="check">✔ Alarmas configuradas</span>
+        <span class="check">✔ Diagrama de secuencia</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DÍA 6-7 ===== -->
+<div class="day">
+  <div class="day-header">
+    <div class="day-num" style="background:#fbbf24">D6</div>
+    <div><div class="day-title" style="color:#fbbf24">Documentación, Demo y Entrega</div><div class="day-subtitle">Sábado-Domingo — 4 a 5 horas</div></div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">1</div>
+    <div class="step-body">
+      <div class="step-title">Completar el README</div>
+      <div class="step-desc">Secciones que debería tener:</div>
+      <div class="step-cmd"># GhostBite 🍔 — Dark Kitchen Event-Driven
+
+## Caso de Negocio
+(el que ya escribiste el día 1)
+
+## Arquitectura
+(imagen del diagrama C4 de contenedores)
+(imagen del diagrama de secuencia)
+
+## Servicios AWS Utilizados
+| Servicio | Rol | Justificación |
+|----------|-----|---------------|
+| MSK Serverless | Bus de eventos | Fan-out, orden, retención |
+| API Gateway | Entrada | REST + auth |
+| Lambda (x6) | Compute | Serverless, pay-per-use |
+| DynamoDB | Storage | Flexible, on-demand |
+| ElastiCache | Cache | Estado real-time |
+| Cognito | Auth | JWT, user management |
+| SNS + SES | Notificaciones | Push, email |
+| CloudWatch | Monitoring | Métricas, alarmas, logs |
+| X-Ray | Tracing | Tracing distribuido |
+| S3 | Storage | Imágenes, logs |
+
+## Cómo Replicar
+Paso a paso de cómo crear cada servicio en la consola.
+
+## Decisiones de Arquitectura
+Links a los ADRs en docs/adr/
+
+## Análisis de Costos
+(tabla con estimación)
+
+## Lecciones Aprendidas
+(qué salió bien, qué fue difícil, qué mejorarías)</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">2</div>
+    <div class="step-body">
+      <div class="step-title">Análisis de costos</div>
+      <div class="step-desc">Estimá el costo mensual asumiendo 1.000 pedidos/día. Desglosá por servicio.</div>
+      <div class="step-console">🖥️ Abrí calculator.aws → Agregá cada servicio:<br/>
+        • MSK Serverless: ~$0.75/hr base + $0.10/GB<br/>
+        • Lambda: 6 funciones × 1000 inv/día × 500ms = ~$2/mes<br/>
+        • DynamoDB on-demand: 1000 writes/día = ~$1/mes<br/>
+        • ElastiCache: cache.t3.micro = ~$12/mes<br/>
+        • API Gateway: 1000 requests/día = ~$1/mes<br/>
+        • SNS + SES: negligible en free tier<br/>
+        → Exportar como PDF</div>
+      <div class="step-tip">💡 El análisis de costos demuestra pensamiento de negocio y no solo técnico. Los profes lo valoran mucho.</div>
+      <div class="step-files"><span class="file-badge">docs/cost-analysis.md</span></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">3</div>
+    <div class="step-body">
+      <div class="step-title">Grabar la demo</div>
+      <div class="step-desc">Video de 3-5 minutos. Mostrá:</div>
+      <div class="step-cmd">1. POST a la API con curl → respuesta con orderId
+2. CloudWatch Logs → ver el evento en cada Lambda
+3. DynamoDB → el item creado con todos los campos
+4. Redis → el estado EN_PREPARACIÓN
+5. Email → la notificación que llegó
+6. X-Ray → el trace completo del pedido
+7. Dashboard → las métricas subiendo</div>
+      <div class="step-tip">💡 Usá OBS (gratis) o Loom. El trace de X-Ray mostrando todo el flujo end-to-end es lo más impactante para la demo.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">4</div>
+    <div class="step-body">
+      <div class="step-title">Escribir "Lecciones Aprendidas"</div>
+      <div class="step-desc">Una sección honesta. Ejemplos:</div>
+      <div class="step-cmd">## Lecciones Aprendidas
+
+### Qué salió bien
+- La arquitectura event-driven simplifica agregar consumers
+- MSK Serverless fue mucho más simple que MSK provisioned
+- DynamoDB on-demand eliminó la preocupación por capacidad
+
+### Qué fue difícil
+- Networking: conectar Lambda a MSK/Redis dentro de VPC
+- IAM: los permisos de MSK con IAM auth fueron complicados
+- Cold starts: primera invocación de Lambda tarda 5-8s
+
+### Mejoras futuras
+- Dead Letter Queue para mensajes que fallan
+- Schema Registry para validar eventos Kafka
+- Terraform para reproducir la infra automáticamente
+- Tests de integración automatizados
+- Circuit breaker en los consumers</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">5</div>
+    <div class="step-body">
+      <div class="step-title">⚠️ Destruir recursos en AWS</div>
+      <div class="step-desc">Si usás tu cuenta personal, eliminá todo después de grabar la demo para no acumular costos. MSK cobra por hora.</div>
+      <div class="step-console">🖥️ Consola: Eliminá en este orden:<br/>
+        1. Lambda triggers (event source mappings)<br/>
+        2. Lambdas<br/>
+        3. API Gateway<br/>
+        4. MSK Cluster<br/>
+        5. ElastiCache<br/>
+        6. DynamoDB tables<br/>
+        7. Cognito User Pool<br/>
+        8. S3 Buckets (vaciar primero)<br/>
+        9. VPC (eliminar NAT GW primero, después VPC)</div>
+      <div class="step-tip">💡 Hacé esto DESPUÉS de grabar la demo y sacar screenshots del dashboard.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">6</div>
+    <div class="step-body">
+      <div class="step-title">Checklist final antes de entregar</div>
+      <div class="step-check">
+        <span class="check">✔ README completo y claro</span>
+        <span class="check">✔ Diagrama C4 (contexto + contenedores)</span>
+        <span class="check">✔ Diagrama de secuencia</span>
+        <span class="check">✔ 3-4 ADRs con justificaciones</span>
+        <span class="check">✔ Código de 6 Lambdas</span>
+        <span class="check">✔ Análisis de costos</span>
+        <span class="check">✔ Video demo</span>
+        <span class="check">✔ Lecciones aprendidas</span>
+        <span class="check">✔ Sin secrets en el código</span>
+        <span class="check">✔ .gitignore bien configurado</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-icon" style="background:#fbbf24">🚀</div>
+    <div class="step-body">
+      <div class="step-title" style="color:#fbbf24;font-size:16px">¡Listo para entregar!</div>
+      <div class="step-desc" style="color:#ccc">Si llegaste con todos los checkpoints verdes, tenés un TP sólido: arquitectura bien diseñada, servicios AWS integrados, observabilidad, y documentación profesional. Éxitos 💪</div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
