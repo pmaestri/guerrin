@@ -103,8 +103,8 @@ resource "aws_lambda_event_source_mapping" "msk" {
 locals {
   lambdas_dir = "${path.root}/../lambdas"
   d3_functions = {
-    ingress          = aws_lambda_function.this["ingress"].function_name
-    order-processor  = aws_lambda_function.this["order-processor"].function_name
+    ingress         = aws_lambda_function.this["ingress"].function_name
+    order-processor = aws_lambda_function.this["order-processor"].function_name
   }
 }
 

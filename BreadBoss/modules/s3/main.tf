@@ -1,5 +1,7 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "assets" {
-  bucket = "${var.prefix}-assets"
+  bucket = "${var.prefix}-assets-${data.aws_caller_identity.current.account_id}"
   tags   = { Name = "${var.prefix}-assets" }
 }
 

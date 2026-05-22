@@ -5,7 +5,7 @@ import time
 import boto3
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('ghostbite-orders')
+table = dynamodb.Table('breadboss-orders')
 
 
 def handler(event, context):

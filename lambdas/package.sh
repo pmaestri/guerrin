@@ -10,7 +10,7 @@ for lambda in "${LAMBDAS[@]}"; do
   rm -rf package dist
   mkdir package
 
-  pip install -r requirements.txt -t ./package --quiet
+  pip3 install -r requirements.txt -t ./package --quiet
 
   cd package
   zip -r "../${lambda}.zip" . --quiet

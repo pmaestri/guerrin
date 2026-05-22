@@ -11,6 +11,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           title  = "Lambda Invocations"
+          region = var.aws_region
           period = 60
           stat   = "Sum"
           metrics = [
@@ -22,6 +23,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           title  = "Lambda Errors"
+          region = var.aws_region
           period = 60
           stat   = "Sum"
           metrics = [
@@ -33,6 +35,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           title  = "Lambda Duration (ms)"
+          region = var.aws_region
           period = 60
           stat   = "Average"
           metrics = [
@@ -44,6 +47,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           title   = "Pedidos Creados"
+          region  = var.aws_region
           period  = 60
           stat    = "Sum"
           metrics = [["BreadBoss", "OrdersCreated"]]
@@ -53,6 +57,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           title   = "DynamoDB ReadCapacity"
+          region  = var.aws_region
           period  = 60
           stat    = "Sum"
           metrics = [["AWS/DynamoDB", "ConsumedReadCapacityUnits"]]

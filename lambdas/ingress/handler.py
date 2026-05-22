@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from kafka import KafkaProducer
-from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import MSKAuthTokenProvider
 
 
 def get_producer():
