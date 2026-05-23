@@ -11,7 +11,7 @@ locals {
 
   functions = {
     ingress = {
-      env_extras = {}
+      env_extras = { MENU_TABLE = var.menu_table_name }
     }
     order-processor = {
       env_extras = {}
