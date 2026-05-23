@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BreadBoss · Dashboard Analítico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="page">
+
+        <!-- ============ HEADER ============ -->
+        <header class="hero">
+            <div class="hero-left">
+                <p class="eyebrow">DASHBOARD ANALÍTICO</p>
+                <h1 class="hero-title">
+                    UNA<br/>
+                    COCINA.<br/>
+                    CUATRO<br/>
+                    FRENTES.
+                </h1>
+                <p class="hero-sub">
+                    Bread Boss es una dark kitchen 100% digital. Opera sin salón físico
+                    y concentra pedidos desde cuatro canales digitales que deben coordinar
+                    cocina, stock, delivery y atención al cliente en tiempo real.
+                </p>
+            </div>
+
+            <div class="hero-right">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <p class="kpi-value">12.400</p>
+                        <p class="kpi-label">PEDIDOS / MES</p>
+                        <p class="kpi-delta positive">+38% YoY</p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">4</p>
+                        <p class="kpi-label">CANALES ACTIVOS</p>
+                        <p class="kpi-delta">App · Web · WA · Marketplaces</p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">23 min</p>
+                        <p class="kpi-label">ENTREGA PROMEDIO</p>
+                        <p class="kpi-delta positive">−18% vs 2024</p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">×5</p>
+                        <p class="kpi-label">PICO VIERNES 21H</p>
+                        <p class="kpi-delta">vs volumen promedio</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ============ AGENTE IA ============ -->
+        <section class="agent-section">
+            <div class="agent-header">
+                <p class="eyebrow">RESPUESTA DEL AGENTE DE IA</p>
+                <h2 class="section-title">Conclusiones automáticas</h2>
+            </div>
+            <textarea class="agent-input" rows="6" readonly placeholder="Aquí se mostrarán las conclusiones del agente de IA en tiempo real..."
+>El viernes a las 21:00 hs concentra el 14% del volumen semanal de pedidos, con un pico de ×5 sobre el promedio diario. Marketplaces (Rappi + PedidosYa) registra +27% en tiempo de entrega respecto a la app propia (28 min vs 22 min), lo que sugiere un cuello de botella en la coordinación con repartidores externos. El 6.2% de los pedidos fueron cancelados, concentrándose en falta de stock de "Sourdough Box" durante el pico. Se recomienda escalar la producción anticipada de los 3 ítems top entre las 19:00 y 20:30 hs y reforzar el equipo de packing los viernes.</textarea>
+        </section>
+
+        <!-- ============ OPERACIONALES ============ -->
+        <section class="block">
+            <div class="block-header">
+                <p class="eyebrow">OPERACIONALES</p>
+                <h2 class="section-title">El día a día de la cocina</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="card chart-card large">
+                    <div class="card-head">
+                        <h3>Pedidos por hora</h3>
+                        <span class="badge">PICO 21:00</span>
+                    </div>
+                    <p class="card-sub">Distribución horaria del último día operativo</p>
+                    <div class="chart-wrap tall"><canvas id="ordersByHour"></canvas></div>
+                </div>
+
+                <div class="card chart-card large">
+                    <div class="card-head">
+                        <h3>Tiempo promedio de entrega por canal</h3>
+                        <span class="badge warn">RAPPI +27%</span>
+                    </div>
+                    <p class="card-sub">Minutos desde confirmación hasta entrega</p>
+                    <div class="chart-wrap tall"><canvas id="deliveryByChannel"></canvas></div>
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Cancelación por canal</h3>
+                    </div>
+                    <p class="card-sub">% de pedidos cancelados</p>
+                    <div class="chart-wrap"><canvas id="cancelByChannel"></canvas></div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Tasa de incidencias</h3>
+                        <span class="badge">6.2%</span>
+                    </div>
+                    <p class="card-sub">Pedidos con algún problema reportado</p>
+                    <div class="chart-wrap"><canvas id="incidenceRate"></canvas></div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Pedidos más frecuentes</h3>
+                    </div>
+                    <p class="card-sub">Top 5 ítems del día</p>
+                    <div class="chart-wrap"><canvas id="topItems"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ FINANCIERAS ============ -->
+        <section class="block">
+            <div class="block-header">
+                <p class="eyebrow">FINANCIERAS</p>
+                <h2 class="section-title">El dinero en movimiento</h2>
+            </div>
+
+            <div class="grid-revenue">
+                <div class="card revenue-hero">
+                    <p class="kpi-label dark">REVENUE DEL DÍA</p>
+                    <p class="revenue-main">$ 1.847.320</p>
+                    <p class="kpi-delta positive">+12.4% vs ayer · +28% vs mismo día semana pasada</p>
+                    <div class="revenue-meta">
+                        <div>
+                            <span class="meta-num">$ 7.430</span>
+                            <span class="meta-lab">TICKET PROMEDIO</span>
+                        </div>
+                        <div>
+                            <span class="meta-num">248</span>
+                            <span class="meta-lab">PEDIDOS PAGADOS</span>
+                        </div>
+                        <div>
+                            <span class="meta-num">$ 18.900</span>
+                            <span class="meta-lab">TICKET MÁX</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Revenue por canal</h3>
+                    </div>
+                    <p class="card-sub">Participación en facturación del día</p>
+                    <div class="chart-wrap"><canvas id="revenueByChannel"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ CALIDAD ============ -->
+        <section class="block">
+            <div class="block-header">
+                <p class="eyebrow">CALIDAD</p>
+                <h2 class="section-title">La promesa que cumplimos</h2>
+            </div>
+
+            <div class="grid-3">
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Entregas a tiempo</h3>
+                        <span class="badge ok">87%</span>
+                    </div>
+                    <p class="card-sub">Pedidos entregados &lt; 30 min</p>
+                    <div class="chart-wrap small"><canvas id="onTimeRate"></canvas></div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Reclamos del cliente</h3>
+                    </div>
+                    <p class="card-sub">Distribución de tipos de reclamo</p>
+                    <div class="chart-wrap"><canvas id="complaints"></canvas></div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Causas de cancelación</h3>
+                    </div>
+                    <p class="card-sub">Agrupadas por motivo</p>
+                    <div class="chart-wrap"><canvas id="cancelReasons"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ TENDENCIAS ============ -->
+        <section class="block">
+            <div class="block-header">
+                <p class="eyebrow">TENDENCIAS</p>
+                <h2 class="section-title">Comparativa histórica</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Hoy vs mismo día, semana anterior</h3>
+                        <span class="badge ok">+28%</span>
+                    </div>
+                    <p class="card-sub">Volumen de pedidos por hora</p>
+                    <div class="chart-wrap tall"><canvas id="weekCompare"></canvas></div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-head">
+                        <h3>Evolución del tiempo de entrega</h3>
+                        <span class="badge ok">−18% últimos 30d</span>
+                    </div>
+                    <p class="card-sub">Promedio diario, último mes</p>
+                    <div class="chart-wrap tall"><canvas id="deliveryTrend"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card chart-card full">
+                <div class="card-head">
+                    <h3>Canales en crecimiento vs decrecimiento</h3>
+                </div>
+                <p class="card-sub">Variación porcentual mes vs mes</p>
+                <div class="chart-wrap tall"><canvas id="channelTrend"></canvas></div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>BREADBOSS · DARK KITCHEN ANALYTICS · 2026</p>
+        </footer>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
