@@ -12,7 +12,7 @@ from collections import Counter
 def lambda_handler(event, context):
     fecha = event.get("fecha") or datetime.now().strftime("%Y-%m-%d")
     openai_key = os.environ.get("OPENAI_API_KEY")
-    orders_table = os.environ.get("ORDERS_TABLE", "ghostbite-orders")
+    orders_table = os.environ.get("ORDERS_TABLE", "breadboss-orders")
     resumenes_table = os.environ.get("RESUMENES_TABLE", "breadboss_resumenes")
     metricas_table = os.environ.get("METRICAS_TABLE", "breadboss_metricas")
     umbral_min = int(os.environ.get("ENTREGA_UMBRAL_MIN", "45"))

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-LAMBDAS=("ingress" "order-processor")
+LAMBDAS=("ingress" "order-processor" "kitchen-manager" "stock-updater" "delivery-tracker" "notifier")
 
 for lambda in "${LAMBDAS[@]}"; do
   echo "📦 Empaquetando $lambda..."
@@ -25,4 +25,4 @@ done
 
 echo ""
 echo "🚀 Zips generados:"
-ls -lh ingress/ingress.zip order-processor/order-processor.zip
+ls -lh *//*.zip 2>/dev/null || ls */*.zip

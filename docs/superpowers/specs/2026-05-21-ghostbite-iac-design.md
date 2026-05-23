@@ -1,4 +1,4 @@
-# GhostBite IaC — Diseño Técnico
+# Bread Boss IaC — Diseño Técnico
 **Fecha:** 2026-05-21  
 **Herramienta:** Terraform  
 **Contexto:** Trabajo práctico universitario  
@@ -8,20 +8,20 @@
 
 ## Objetivo
 
-Implementar como código (IaC) la infraestructura AWS de GhostBite, una dark kitchen event-driven. El resultado es un conjunto de módulos Terraform que reproducen toda la arquitectura desde cero con un solo `terraform apply`.
+Implementar como código (IaC) la infraestructura AWS de Bread Boss, una dark kitchen event-driven. El resultado es un conjunto de módulos Terraform que reproducen toda la arquitectura desde cero con un solo `terraform apply`.
 
 ---
 
 ## Arquitectura de referencia
 
-GhostBite recibe pedidos por API Gateway, los publica a un topic Kafka (MSK) y los procesa en paralelo con 5 funciones Lambda consumer. El estado se persiste en DynamoDB y Redis (ElastiCache). Las notificaciones se envían por SNS/SES. Todo el sistema vive dentro de una VPC privada y se observa con CloudWatch y X-Ray.
+Bread Boss recibe pedidos por API Gateway, los publica a un topic Kafka (MSK) y los procesa en paralelo con 5 funciones Lambda consumer. El estado se persiste en DynamoDB y Redis (ElastiCache). Las notificaciones se envían por SNS/SES. Todo el sistema vive dentro de una VPC privada y se observa con CloudWatch y X-Ray.
 
 ---
 
 ## Estructura de archivos
 
 ```
-ghostbite/
+BreadBoss/
 ├── main.tf              # Composición: invoca todos los módulos
 ├── variables.tf         # Variables globales: prefix, region, az_count
 ├── outputs.tf           # Outputs: API URL, MSK bootstrap, etc.
@@ -61,10 +61,10 @@ Cada módulo tiene: `main.tf`, `variables.tf`, `outputs.tf`.
 - Outputs: `bootstrap_brokers_sasl_iam`
 
 ### `dynamodb`
-- Tabla `ghostbite-orders`: PK=`orderId` (String), SK=`timestamp` (Number), billing=ON_DEMAND
+- Tabla `breadboss-orders`: PK=`orderId` (String), SK=`timestamp` (Number), billing=ON_DEMAND
   - GSI 1: `channel-index` — PK=`channel`, SK=`timestamp`
   - GSI 2: `status-index` — PK=`status`, SK=`timestamp`
-- Tabla `ghostbite-menu`: PK=`itemId` (String), billing=ON_DEMAND
+- Tabla `breadboss-menu`: PK=`itemId` (String), billing=ON_DEMAND
 - Outputs: `orders_table_name`, `orders_table_arn`, `menu_table_name`, `menu_table_arn`
 
 ### `elasticache`
@@ -81,13 +81,13 @@ Cada módulo tiene: `main.tf`, `variables.tf`, `outputs.tf`.
 - Outputs: `user_pool_id`, `user_pool_endpoint`, `client_id`
 
 ### `s3`
-- Recurso: `aws_s3_bucket` con nombre `ghostbite-assets-${var.prefix}`
+- Recurso: `aws_s3_bucket` con nombre `breadboss-assets-${var.prefix}`
 - Block public access habilitado
 - Outputs: `bucket_name`, `bucket_arn`
 
 ### `iam`
 - Recurso: `aws_iam_role` + `aws_iam_role_policy_attachment`
-- Rol: `ghostbite-lambda-role`, assume por `lambda.amazonaws.com`
+- Rol: `breadboss-lambda-role`, assume por `lambda.amazonaws.com`
 - Políticas adjuntas:
   - `AmazonDynamoDBFullAccess`
   - `AmazonMSKFullAccess`
@@ -121,22 +121,22 @@ Cada módulo tiene: `main.tf`, `variables.tf`, `outputs.tf`.
 - Recurso: `aws_apigatewayv2_api` (HTTP API)
 - JWT Authorizer con Cognito: `aws_apigatewayv2_authorizer`
 - Ruta: `POST /orders` con autorización JWT
-- Integración Lambda a `ghostbite-ingress`: `aws_apigatewayv2_integration`
+- Integración Lambda a `breadboss-ingress`: `aws_apigatewayv2_integration`
 - Stage `$default` con auto-deploy
 - Permission Lambda: `aws_lambda_permission` para que API GW invoque la función
 - Outputs: `api_url`, `api_id`
 
 ### `sns_ses`
-- Recurso: `aws_sns_topic` — nombre `ghostbite-notifications`
+- Recurso: `aws_sns_topic` — nombre `breadboss-notifications`
 - Recurso: `aws_ses_email_identity` — email configurable vía variable
 - Outputs: `sns_topic_arn`, `ses_sender`
 
 ### `cloudwatch`
-- `aws_cloudwatch_dashboard` — GhostBite-Operations con widgets:
+- `aws_cloudwatch_dashboard` — breadboss-Operations con widgets:
   - Lambda Invocations (todas las funciones)
   - Lambda Errors (todas)
   - Lambda Duration (todas)
-  - Custom metric `GhostBite/OrdersCreated`
+  - Custom metric `BreadBoss/OrdersCreated`
   - DynamoDB ConsumedReadCapacityUnits
 - `aws_cloudwatch_metric_alarm` × 2:
   - Lambda Errors > 1 en 5 min → SNS notification
@@ -165,14 +165,14 @@ module "cloudwatch" { ..., lambda_names = module.lambda.all_function_names }
 
 ## Variables globales (`variables.tf`)
 
-| Variable | Default | Descripción |
-|---|---|---|
-| `aws_region` | `us-east-1` | Región de despliegue |
-| `prefix` | `ghostbite` | Prefijo de todos los recursos |
-| `az_count` | `2` | Cantidad de AZs |
-| `cognito_test_user_email` | — | Email del usuario de test |
-| `cognito_test_user_password` | — (sensitive) | Password temporal |
-| `ses_sender_email` | — | Email verificado en SES |
+| Variable                     | Default       | Descripción                   |
+| ---------------------------- | ------------- | ----------------------------- |
+| `aws_region`                 | `us-east-1`   | Región de despliegue          |
+| `prefix`                     | `breadboss`   | Prefijo de todos los recursos |
+| `az_count`                   | `2`           | Cantidad de AZs               |
+| `cognito_test_user_email`    | —             | Email del usuario de test     |
+| `cognito_test_user_password` | — (sensitive) | Password temporal             |
+| `ses_sender_email`           | —             | Email verificado en SES       |
 
 ---
 
@@ -226,7 +226,7 @@ Terraform resuelve el grafo automáticamente, pero el orden lógico es:
 ## Cómo usar
 
 ```bash
-cd ghostbite/
+cd breadboss/
 terraform init
 cp terraform.tfvars.example terraform.tfvars  # completar emails
 terraform plan
@@ -236,7 +236,7 @@ terraform apply
 aws cognito-idp initiate-auth \
   --client-id $(terraform output -raw cognito_client_id) \
   --auth-flow USER_PASSWORD_AUTH \
-  --auth-parameters USERNAME=test@ghostbite.com,PASSWORD=Test1234!
+  --auth-parameters USERNAME=test@breadboss.com,PASSWORD=Test1234!
 
 # Crear pedido
 curl -X POST $(terraform output -raw api_invoke_url)/orders \

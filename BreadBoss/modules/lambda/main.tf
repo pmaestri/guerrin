@@ -1,25 +1,14 @@
-data "archive_file" "stub" {
-  type        = "zip"
-  source_file = "${path.module}/stub/handler.py"
-  output_path = "${path.module}/stub/handler.zip"
-}
-
-resource "aws_security_group" "lambda" {
-  name        = "${var.prefix}-lambda-sg"
-  description = "Lambda egress to VPC services"
-  vpc_id      = var.vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${var.prefix}-lambda-sg" }
-}
-
 locals {
+  lambdas_dir = "${path.module}"
+
+  # Lambdas sin dependencias externas: boto3 ya viene en el runtime de Lambda.
+  # Terraform empaqueta el .py directamente con archive_file.
+  simple_functions = toset(["order-processor", "stock-updater", "notifier"])
+
+  # Lambdas con dependencias externas (kafka, redis): requieren pip install previo.
+  # El zip se construye con package.sh y Terraform lo referencia ya construido.
+  packaged_functions = toset(["ingress", "kitchen-manager", "delivery-tracker"])
+
   functions = {
     ingress = {
       env_extras = {}
@@ -44,7 +33,35 @@ locals {
     }
   }
 
-  consumers = ["order-processor", "kitchen-manager", "stock-updater", "delivery-tracker", "notifier"]
+  # Consumers del topic "pedidos" (ORDER_CREATED)
+  consumers_orders_created = ["order-processor", "kitchen-manager", "stock-updater", "notifier"]
+
+  # Consumers del topic "orders.ready" (ORDER_READY — publicado por kitchen-manager)
+  consumers_orders_ready = ["delivery-tracker", "notifier"]
+}
+
+# Zips para lambdas simples: Terraform los genera a partir del .py
+data "archive_file" "simple" {
+  for_each = local.simple_functions
+
+  type        = "zip"
+  source_file = "${local.lambdas_dir}/${each.key}/handler.py"
+  output_path = "${local.lambdas_dir}/${each.key}/${each.key}.zip"
+}
+
+resource "aws_security_group" "lambda" {
+  name        = "${var.prefix}-lambda-sg"
+  description = "Lambda egress to VPC services"
+  vpc_id      = var.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.prefix}-lambda-sg" }
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
@@ -62,10 +79,23 @@ resource "aws_lambda_function" "this" {
   handler       = "handler.handler"
   timeout       = 30
   memory_size   = 256
-  filename      = data.archive_file.stub.output_path
+
+  # Lambdas simples usan el zip generado por archive_file.
+  # Lambdas con dependencias referencian el zip pre-construido por package.sh.
+  filename = contains(tolist(local.simple_functions), each.key) ? (
+    data.archive_file.simple[each.key].output_path
+  ) : (
+    "${local.lambdas_dir}/${each.key}/${each.key}.zip"
+  )
+
+  source_code_hash = contains(tolist(local.simple_functions), each.key) ? (
+    data.archive_file.simple[each.key].output_base64sha256
+  ) : (
+    filebase64sha256("${local.lambdas_dir}/${each.key}/${each.key}.zip")
+  )
 
   tracing_config {
-    mode = "PassThrough"
+    mode = "Active"
   }
 
   vpc_config {
@@ -88,8 +118,8 @@ resource "aws_lambda_function" "this" {
   tags = { Name = "${var.prefix}-${each.key}" }
 }
 
-resource "aws_lambda_event_source_mapping" "msk" {
-  for_each = toset(local.consumers)
+resource "aws_lambda_event_source_mapping" "orders_created" {
+  for_each = toset(local.consumers_orders_created)
 
   event_source_arn  = var.msk_cluster_arn
   function_name     = aws_lambda_function.this[each.key].arn
@@ -98,39 +128,12 @@ resource "aws_lambda_event_source_mapping" "msk" {
   batch_size        = 10
 }
 
-# D3: despliega el código real de ingress y order-processor.
-# Se re-ejecuta automáticamente cuando cambia alguno de los handlers.
-locals {
-  lambdas_dir = "${path.root}/../lambdas"
-  d3_functions = {
-    ingress         = aws_lambda_function.this["ingress"].function_name
-    order-processor = aws_lambda_function.this["order-processor"].function_name
-  }
-}
+resource "aws_lambda_event_source_mapping" "orders_ready" {
+  for_each = toset(local.consumers_orders_ready)
 
-resource "null_resource" "deploy_d3" {
-  triggers = {
-    ingress_hash         = filemd5("${local.lambdas_dir}/ingress/handler.py")
-    order_processor_hash = filemd5("${local.lambdas_dir}/order-processor/handler.py")
-  }
-
-  provisioner "local-exec" {
-    working_dir = local.lambdas_dir
-    interpreter = ["C:\\Program Files\\Git\\bin\\bash.exe", "-c"]
-    command     = <<-EOT
-      bash package.sh
-      aws lambda update-function-code \
-        --function-name ${local.d3_functions["ingress"]} \
-        --zip-file fileb://ingress/ingress.zip \
-        --region ${var.aws_region} \
-        --no-cli-pager
-      aws lambda update-function-code \
-        --function-name ${local.d3_functions["order-processor"]} \
-        --zip-file fileb://order-processor/order-processor.zip \
-        --region ${var.aws_region} \
-        --no-cli-pager
-    EOT
-  }
-
-  depends_on = [aws_lambda_function.this]
+  event_source_arn  = var.msk_cluster_arn
+  function_name     = aws_lambda_function.this[each.key].arn
+  topics            = ["orders.ready"]
+  starting_position = "LATEST"
+  batch_size        = 10
 }

@@ -2,6 +2,7 @@
 aws_region                 = "us-east-1"
 prefix                     = "breadboss"
 az_count                   = 2
-cognito_test_user_email    = "test@breadboss.com"
+cognito_test_user_email    = "lanciramiro9@gmail.com"
 cognito_test_user_password = "Test1234!"
-ses_sender_email           = "noreply@breadboss.com"
+ses_sender_email           = "lanciramiro9@gmail.com"
+openai_api_key             = "sk-..."
