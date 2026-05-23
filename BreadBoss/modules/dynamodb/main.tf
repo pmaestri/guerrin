@@ -20,6 +20,10 @@ resource "aws_dynamodb_table" "orders" {
     name = "status"
     type = "S"
   }
+  attribute {
+    name = "fecha"
+    type = "S"
+  }
 
   global_secondary_index {
     name            = "channel-index"
@@ -35,7 +39,40 @@ resource "aws_dynamodb_table" "orders" {
     projection_type = "ALL"
   }
 
+  global_secondary_index {
+    name            = "fecha-index"
+    hash_key        = "fecha"
+    range_key       = "timestamp"
+    projection_type = "ALL"
+  }
+
   tags = { Name = "${var.prefix}-orders" }
+}
+
+resource "aws_dynamodb_table" "resumenes" {
+  name         = "breadboss_resumenes"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "fecha"
+
+  attribute {
+    name = "fecha"
+    type = "S"
+  }
+
+  tags = { Name = "breadboss_resumenes" }
+}
+
+resource "aws_dynamodb_table" "metricas" {
+  name         = "breadboss_metricas"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "fecha"
+
+  attribute {
+    name = "fecha"
+    type = "S"
+  }
+
+  tags = { Name = "breadboss_metricas" }
 }
 
 resource "aws_dynamodb_table" "menu" {

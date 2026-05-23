@@ -31,3 +31,9 @@ variable "ses_sender_email" {
   description = "Email verificado en SES para enviar notificaciones"
   type        = string
 }
+
+variable "openai_api_key" {
+  description = "API key de OpenAI para el agente auditor"
+  type        = string
+  sensitive   = true
+}
