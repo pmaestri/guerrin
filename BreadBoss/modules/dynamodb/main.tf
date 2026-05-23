@@ -87,3 +87,30 @@ resource "aws_dynamodb_table" "menu" {
 
   tags = { Name = "${var.prefix}-menu" }
 }
+
+resource "aws_dynamodb_table" "processed" {
+  name         = "${var.prefix}-processed"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "orderId"
+  range_key    = "consumer"
+
+  attribute {
+    name = "orderId"
+    type = "S"
+  }
+  attribute {
+    name = "consumer"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  tags = { Name = "${var.prefix}-processed" }
+}
+
+output "processed_table_name" {
+  value = aws_dynamodb_table.processed.name
+}
