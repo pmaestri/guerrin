@@ -1,30 +1,71 @@
 import json
+import logging
 import os
+import sys
 import base64
+import time
+
+import boto3
 import redis
-from datetime import datetime
+from boto3.dynamodb.conditions import Key
 from kafka import KafkaProducer
 from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 
+sys.path.insert(0, "/var/task/shared")
+from idempotency import already_processed  # noqa: E402
 
-def _get_redis():
-    return redis.Redis(host=os.environ["REDIS_HOST"], port=6379, ssl=True)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+dynamodb = boto3.resource("dynamodb")
+orders_table = dynamodb.Table(os.environ.get("ORDERS_TABLE", "breadboss-orders"))
+
+_redis = None
+_producer = None
 
 
-def _get_producer():
-    tp = MSKAuthTokenProvider(region=os.environ["AWS_REGION_NAME"])
-    return KafkaProducer(
-        bootstrap_servers=os.environ["MSK_BOOTSTRAP"].split(","),
-        security_protocol="SASL_SSL",
-        sasl_mechanism="OAUTHBEARER",
-        sasl_oauth_token_provider=tp,
-        value_serializer=lambda v: json.dumps(v).encode(),
+def get_redis():
+    global _redis
+    if _redis is None:
+        _redis = redis.Redis(host=os.environ["REDIS_HOST"], port=6379, ssl=True)
+    return _redis
+
+
+def get_producer():
+    global _producer
+    if _producer is None:
+        tp = MSKAuthTokenProvider(region=os.environ["AWS_REGION_NAME"])
+        _producer = KafkaProducer(
+            bootstrap_servers=os.environ["MSK_BOOTSTRAP"].split(","),
+            security_protocol="SASL_SSL",
+            sasl_mechanism="OAUTHBEARER",
+            sasl_oauth_token_provider=tp,
+            value_serializer=lambda v: json.dumps(v).encode(),
+        )
+    return _producer
+
+
+def _update_dynamo_status(order_id, status):
+    resp = orders_table.query(
+        KeyConditionExpression=Key("orderId").eq(order_id),
+        Limit=1,
+    )
+    items = resp.get("Items", [])
+    if not items:
+        logger.warning(json.dumps({"orderId": order_id, "handler": "kitchen-manager", "msg": "orderId no encontrado en DynamoDB"}))
+        return
+    item = items[0]
+    orders_table.update_item(
+        Key={"orderId": order_id, "timestamp": item["timestamp"]},
+        UpdateExpression="SET #s = :status, updatedAt = :u",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={":status": status, ":u": int(time.time() * 1000)},
     )
 
 
 def handler(event, context):
-    r = _get_redis()
-    producer = _get_producer()
+    r = get_redis()
+    producer = get_producer()
 
     for records in event["records"].values():
         for record in records:
@@ -32,33 +73,37 @@ def handler(event, context):
             data = payload["data"]
             order_id = data["orderId"]
 
+            if already_processed(order_id, "kitchen-manager"):
+                continue
+
+            now_ms = int(time.time() * 1000)
+
             r.hset(
                 f"order:{order_id}",
-                mapping={
-                    "status": "EN_PREPARACION",
-                    "updated_at": datetime.utcnow().isoformat(),
-                    "items": json.dumps(data["items"]),
-                },
+                mapping={"status": "EN_PREPARACION", "updated_at": str(now_ms), "items": json.dumps(data["items"])},
             )
             r.expire(f"order:{order_id}", 7200)
             r.lpush("kitchen:queue", order_id)
 
-            # Dispara el segundo fan-out: delivery-tracker y notifier escuchan este topic
+            _update_dynamo_status(order_id, "EN_PREPARACION")
+
             producer.send(
                 "orders.ready",
                 key=order_id.encode(),
                 value={
                     "eventType": "ORDER_READY",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": now_ms,
                     "data": {
                         "orderId": order_id,
                         "customerId": data.get("customerId"),
+                        "customerEmail": data.get("customerEmail", ""),
                         "total": data.get("total"),
                         "status": "LISTO",
                     },
                 },
             )
-            print(f"Order {order_id} → EN_PREPARACION, ORDER_READY publicado")
+
+            logger.info(json.dumps({"orderId": order_id, "handler": "kitchen-manager", "msg": "EN_PREPARACION, ORDER_READY publicado"}))
 
     producer.flush()
     return {"statusCode": 200}

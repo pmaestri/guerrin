@@ -17,7 +17,10 @@ locals {
       env_extras = {}
     }
     kitchen-manager = {
-      env_extras = { REDIS_HOST = var.redis_host }
+      env_extras = {
+        REDIS_HOST   = var.redis_host
+        ORDERS_TABLE = var.orders_table_name
+      }
     }
     stock-updater = {
       env_extras = {}
