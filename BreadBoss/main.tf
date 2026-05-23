@@ -59,8 +59,9 @@ module "lambda" {
   sns_topic_arn   = module.sns_ses.sns_topic_arn
   ses_sender      = module.sns_ses.ses_sender
   aws_region        = var.aws_region
-  orders_table_name = "${var.prefix}-orders"
-  menu_table_name   = "${var.prefix}-menu"
+  orders_table_name    = "${var.prefix}-orders"
+  menu_table_name      = "${var.prefix}-menu"
+  processed_table_name = "${var.prefix}-processed"
 }
 
 module "api_gateway" {

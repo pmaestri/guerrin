@@ -18,23 +18,28 @@ locals {
     }
     kitchen-manager = {
       env_extras = {
-        REDIS_HOST   = var.redis_host
-        ORDERS_TABLE = var.orders_table_name
+        REDIS_HOST      = var.redis_host
+        ORDERS_TABLE    = var.orders_table_name
+        PROCESSED_TABLE = var.processed_table_name
       }
     }
     stock-updater = {
-      env_extras = {}
+      env_extras = {
+        PROCESSED_TABLE = var.processed_table_name
+      }
     }
     delivery-tracker = {
       env_extras = {
-        REDIS_HOST   = var.redis_host
-        ORDERS_TABLE = var.orders_table_name
+        REDIS_HOST      = var.redis_host
+        ORDERS_TABLE    = var.orders_table_name
+        PROCESSED_TABLE = var.processed_table_name
       }
     }
     notifier = {
       env_extras = {
-        SNS_TOPIC_ARN = var.sns_topic_arn
-        SES_SENDER    = var.ses_sender
+        SNS_TOPIC_ARN   = var.sns_topic_arn
+        SES_SENDER      = var.ses_sender
+        PROCESSED_TABLE = var.processed_table_name
       }
     }
     order-finalizer = {

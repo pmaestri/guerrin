@@ -10,3 +10,4 @@ variable "ses_sender"      { type = string }
 variable "aws_region"      { type = string }
 variable "orders_table_name" { type = string }
 variable "menu_table_name"   { type = string }
+variable "processed_table_name" { type = string }
