@@ -26,7 +26,10 @@ locals {
       env_extras = {}
     }
     delivery-tracker = {
-      env_extras = { REDIS_HOST = var.redis_host }
+      env_extras = {
+        REDIS_HOST   = var.redis_host
+        ORDERS_TABLE = var.orders_table_name
+      }
     }
     notifier = {
       env_extras = {
