@@ -1,2 +1,2 @@
 output "function_name" { value = aws_lambda_function.auditor.function_name }
-output "function_arn"  { value = aws_lambda_function.auditor.arn }
+output "function_arn" { value = aws_lambda_function.auditor.arn }

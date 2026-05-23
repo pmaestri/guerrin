@@ -1,5 +1,5 @@
 locals {
-  lambdas_dir = "${path.module}"
+  lambdas_dir = path.module
 
   # Lambdas sin dependencias externas: boto3 ya viene en el runtime de Lambda.
   # Terraform empaqueta el .py directamente con archive_file.
@@ -104,13 +104,13 @@ resource "aws_lambda_function" "this" {
   # Lambdas con dependencias referencian el zip pre-construido por package.sh.
   filename = contains(tolist(local.simple_functions), each.key) ? (
     data.archive_file.simple[each.key].output_path
-  ) : (
+    ) : (
     "${local.lambdas_dir}/${each.key}/${each.key}.zip"
   )
 
   source_code_hash = contains(tolist(local.simple_functions), each.key) ? (
     data.archive_file.simple[each.key].output_base64sha256
-  ) : (
+    ) : (
     filebase64sha256("${local.lambdas_dir}/${each.key}/${each.key}.zip")
   )
 

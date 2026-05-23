@@ -48,17 +48,17 @@ module "elasticache" {
 }
 
 module "lambda" {
-  source          = "./modules/lambda"
-  prefix          = var.prefix
-  vpc_id          = module.vpc.vpc_id
-  subnet_ids      = module.vpc.private_subnet_ids
-  lambda_role_arn = module.iam.lambda_role_arn
-  msk_cluster_arn = module.msk.cluster_arn
-  msk_bootstrap   = module.msk.bootstrap_brokers_sasl_iam
-  redis_host      = module.elasticache.redis_endpoint
-  sns_topic_arn   = module.sns_ses.sns_topic_arn
-  ses_sender      = module.sns_ses.ses_sender
-  aws_region        = var.aws_region
+  source               = "./modules/lambda"
+  prefix               = var.prefix
+  vpc_id               = module.vpc.vpc_id
+  subnet_ids           = module.vpc.private_subnet_ids
+  lambda_role_arn      = module.iam.lambda_role_arn
+  msk_cluster_arn      = module.msk.cluster_arn
+  msk_bootstrap        = module.msk.bootstrap_brokers_sasl_iam
+  redis_host           = module.elasticache.redis_endpoint
+  sns_topic_arn        = module.sns_ses.sns_topic_arn
+  ses_sender           = module.sns_ses.ses_sender
+  aws_region           = var.aws_region
   orders_table_name    = "${var.prefix}-orders"
   menu_table_name      = "${var.prefix}-menu"
   processed_table_name = "${var.prefix}-processed"
