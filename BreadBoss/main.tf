@@ -72,6 +72,12 @@ module "api_gateway" {
   cognito_endpoint     = module.cognito.user_pool_endpoint
   cognito_client_id    = module.cognito.client_id
   aws_region           = var.aws_region
+  order_finalizer_arn  = module.lambda.order_finalizer_arn
+  order_finalizer_name = module.lambda.order_finalizer_name
+  order_reader_arn     = module.lambda.order_reader_arn
+  order_reader_name    = module.lambda.order_reader_name
+  menu_reader_arn      = module.lambda.menu_reader_arn
+  menu_reader_name     = module.lambda.menu_reader_name
 }
 
 module "cloudwatch" {
