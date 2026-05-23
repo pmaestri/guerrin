@@ -116,6 +116,7 @@ resource "null_resource" "deploy_d3" {
 
   provisioner "local-exec" {
     working_dir = local.lambdas_dir
+    interpreter = ["C:\\Program Files\\Git\\bin\\bash.exe", "-c"]
     command     = <<-EOT
       bash package.sh
       aws lambda update-function-code \

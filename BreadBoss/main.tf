@@ -79,3 +79,13 @@ module "cloudwatch" {
   sns_topic_arn  = module.sns_ses.sns_topic_arn
   aws_region     = var.aws_region
 }
+
+module "auditor" {
+  source               = "./modules/auditor"
+  lambda_role_arn      = module.iam.lambda_role_arn
+  orders_table_name    = module.dynamodb.orders_table_name
+  resumenes_table_name = module.dynamodb.resumenes_table_name
+  metricas_table_name  = module.dynamodb.metricas_table_name
+  openai_api_key       = var.openai_api_key
+  aws_region           = var.aws_region
+}
