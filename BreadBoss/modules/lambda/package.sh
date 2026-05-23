@@ -1,16 +1,23 @@
 #!/bin/bash
 set -e
 
-LAMBDAS=("ingress" "order-processor" "kitchen-manager" "stock-updater" "delivery-tracker" "notifier")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-for lambda in "${LAMBDAS[@]}"; do
-  echo "📦 Empaquetando $lambda..."
-  cd "$lambda"
+PACKAGED=("ingress" "kitchen-manager" "delivery-tracker" "stock-updater" "notifier")
 
-  rm -rf package dist
+for lambda in "${PACKAGED[@]}"; do
+  echo "Empaquetando $lambda..."
+  cd "$SCRIPT_DIR/$lambda"
+
+  rm -rf package
   mkdir package
 
-  pip3 install -r requirements.txt -t ./package --quiet
+  if [ -f requirements.txt ]; then
+    pip3 install -r requirements.txt -t ./package --quiet
+  fi
+
+  mkdir -p ./package/shared
+  cp "$SCRIPT_DIR/shared/idempotency.py" ./package/shared/
 
   cd package
   zip -r "../${lambda}.zip" . --quiet
@@ -19,10 +26,10 @@ for lambda in "${LAMBDAS[@]}"; do
   zip "${lambda}.zip" handler.py --quiet
 
   rm -rf package
-  echo "✅ ${lambda}.zip listo"
-  cd ..
+  echo "${lambda}.zip listo"
+  cd "$SCRIPT_DIR"
 done
 
 echo ""
-echo "🚀 Zips generados:"
-ls -lh *//*.zip 2>/dev/null || ls */*.zip
+echo "Zips generados:"
+find . -name "*.zip" | head -20
