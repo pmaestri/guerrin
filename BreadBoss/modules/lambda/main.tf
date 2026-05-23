@@ -3,7 +3,7 @@ locals {
 
   # Lambdas sin dependencias externas: boto3 ya viene en el runtime de Lambda.
   # Terraform empaqueta el .py directamente con archive_file.
-  simple_functions = toset(["order-processor", "stock-updater", "notifier"])
+  simple_functions = toset(["order-processor", "stock-updater", "notifier", "order-finalizer", "order-reader", "menu-reader"])
 
   # Lambdas con dependencias externas (kafka, redis): requieren pip install previo.
   # El zip se construye con package.sh y Terraform lo referencia ya construido.
@@ -30,6 +30,15 @@ locals {
         SNS_TOPIC_ARN = var.sns_topic_arn
         SES_SENDER    = var.ses_sender
       }
+    }
+    order-finalizer = {
+      env_extras = { ORDERS_TABLE = var.orders_table_name }
+    }
+    order-reader = {
+      env_extras = { ORDERS_TABLE = var.orders_table_name }
+    }
+    menu-reader = {
+      env_extras = { MENU_TABLE = var.menu_table_name }
     }
   }
 

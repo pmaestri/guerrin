@@ -58,7 +58,9 @@ module "lambda" {
   redis_host      = module.elasticache.redis_endpoint
   sns_topic_arn   = module.sns_ses.sns_topic_arn
   ses_sender      = module.sns_ses.ses_sender
-  aws_region      = var.aws_region
+  aws_region        = var.aws_region
+  orders_table_name = "${var.prefix}-orders"
+  menu_table_name   = "${var.prefix}-menu"
 }
 
 module "api_gateway" {

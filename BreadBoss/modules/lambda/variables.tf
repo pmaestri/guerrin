@@ -8,3 +8,5 @@ variable "redis_host"      { type = string }
 variable "sns_topic_arn"   { type = string }
 variable "ses_sender"      { type = string }
 variable "aws_region"      { type = string }
+variable "orders_table_name" { type = string }
+variable "menu_table_name"   { type = string }
