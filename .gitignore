@@ -5,7 +5,12 @@ BreadBoss/terraform.tfvars
 BreadBoss/terraform.tfstate
 BreadBoss/terraform.tfstate.backup
 BreadBoss/modules/lambda/stub/handler.zip
+BreadBoss/tfplan
 .obsidian/
 # AWS credentials
 .aws/
 *.credentials
+# Python
+__pycache__/
+*.pyc
+.DS_Store

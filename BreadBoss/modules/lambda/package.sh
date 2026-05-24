@@ -13,7 +13,12 @@ for lambda in "${PACKAGED[@]}"; do
   mkdir package
 
   if [ -f requirements.txt ]; then
-    pip3 install -r requirements.txt -t ./package --quiet
+    pip3 install -r requirements.txt \
+      --platform manylinux2014_x86_64 \
+      --python-version 3.11 \
+      --only-binary=:all: \
+      --implementation cp \
+      -t ./package --quiet
   fi
 
   mkdir -p ./package/shared

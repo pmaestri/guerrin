@@ -31,3 +31,29 @@ resource "aws_iam_role_policy_attachment" "lambda" {
   role       = aws_iam_role.lambda.name
   policy_arn = each.value
 }
+
+data "aws_iam_policy_document" "kafka_dataplane" {
+  statement {
+    actions = [
+      "kafka-cluster:Connect",
+      "kafka-cluster:AlterCluster",
+      "kafka-cluster:DescribeCluster",
+      "kafka-cluster:DescribeClusterDynamicConfiguration",
+      "kafka-cluster:WriteData",
+      "kafka-cluster:ReadData",
+      "kafka-cluster:AlterTopic",
+      "kafka-cluster:CreateTopic",
+      "kafka-cluster:DescribeTopic",
+      "kafka-cluster:DescribeTopicDynamicConfiguration",
+      "kafka-cluster:AlterGroup",
+      "kafka-cluster:DescribeGroup",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "kafka_dataplane" {
+  name   = "${var.prefix}-kafka-dataplane"
+  role   = aws_iam_role.lambda.name
+  policy = data.aws_iam_policy_document.kafka_dataplane.json
+}

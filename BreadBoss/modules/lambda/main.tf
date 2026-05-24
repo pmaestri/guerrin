@@ -14,7 +14,7 @@ locals {
       env_extras = { MENU_TABLE = var.menu_table_name }
     }
     order-processor = {
-      env_extras = {}
+      env_extras = { ORDERS_TABLE = var.orders_table_name }
     }
     kitchen-manager = {
       env_extras = {
@@ -25,6 +25,7 @@ locals {
     }
     stock-updater = {
       env_extras = {
+        MENU_TABLE      = var.menu_table_name
         PROCESSED_TABLE = var.processed_table_name
       }
     }
