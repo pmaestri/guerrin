@@ -10,6 +10,7 @@ for lambda in "${PACKAGED[@]}"; do
   cd "$SCRIPT_DIR/$lambda"
 
   rm -rf package
+  rm -f "${lambda}.zip"
   mkdir package
 
   if [ -f requirements.txt ]; then

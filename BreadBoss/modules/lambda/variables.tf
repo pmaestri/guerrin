@@ -4,6 +4,7 @@ variable "subnet_ids" { type = list(string) }
 variable "lambda_role_arn" { type = string }
 variable "msk_cluster_arn" { type = string }
 variable "msk_bootstrap" { type = string }
+variable "msk_sg_id" { type = string }
 variable "redis_host" { type = string }
 variable "sns_topic_arn" { type = string }
 variable "ses_sender" { type = string }

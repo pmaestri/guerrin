@@ -85,6 +85,15 @@ resource "aws_security_group" "lambda" {
   tags = { Name = "${var.prefix}-lambda-sg" }
 }
 
+resource "aws_vpc_security_group_ingress_rule" "msk_from_lambda" {
+  security_group_id            = var.msk_sg_id
+  referenced_security_group_id = aws_security_group.lambda.id
+  ip_protocol                  = "tcp"
+  from_port                    = 9098
+  to_port                      = 9098
+  description                  = "MSK IAM access from Lambda SG"
+}
+
 resource "aws_cloudwatch_log_group" "lambda" {
   for_each          = local.functions
   name              = "/aws/lambda/${var.prefix}-${each.key}"
@@ -98,7 +107,7 @@ resource "aws_lambda_function" "this" {
   role          = var.lambda_role_arn
   runtime       = "python3.11"
   handler       = "handler.handler"
-  timeout       = 30
+  timeout       = 90
   memory_size   = 256
 
   # Lambdas simples usan el zip generado por archive_file.

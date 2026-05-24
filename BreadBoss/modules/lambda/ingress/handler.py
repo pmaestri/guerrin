@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import socket
 import uuid
 import time
 
@@ -13,16 +12,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import generate_auth_token
 
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
-kafka_logger = logging.getLogger("kafka")
-kafka_logger.setLevel(logging.DEBUG)
-if not kafka_logger.handlers:
-    h = logging.StreamHandler()
-    h.setLevel(logging.DEBUG)
-    h.setFormatter(logging.Formatter("KAFKA-%(levelname)s: %(message)s"))
-    kafka_logger.addHandler(h)
-    kafka_logger.propagate = False
+logger.setLevel(logging.INFO)
 
 _producer = None
 dynamodb = boto3.resource("dynamodb")
@@ -48,6 +38,7 @@ def _log_cb(level, fac, msg):
     logger.info(json.dumps({"handler": "ingress", "msg": f"kafka log[{level}][{fac}]: {msg}"}))
 
 
+
 def _ensure_topics(bootstrap):
     admin = AdminClient({
         "bootstrap.servers": bootstrap,
@@ -55,12 +46,16 @@ def _ensure_topics(bootstrap):
         "sasl.mechanism": "OAUTHBEARER",
         "oauth_cb": _oauth_cb,
         "ssl.ca.location": certifi.where(),
+        "socket.timeout.ms": 30000,
     })
     topics = [
         NewTopic("pedidos", num_partitions=3, replication_factor=3),
         NewTopic("orders.ready", num_partitions=3, replication_factor=3),
     ]
-    futures = admin.create_topics(topics, request_timeout=15)
+    futures = admin.create_topics(topics, request_timeout=45, operation_timeout=30)
+    deadline = time.time() + 55
+    while not all(f.done() for f in futures.values()) and time.time() < deadline:
+        admin.poll(1)
     for name, fut in futures.items():
         try:
             fut.result()
@@ -84,7 +79,7 @@ def get_producer():
             "sasl.mechanism": "OAUTHBEARER",
             "oauth_cb": _oauth_cb,
             "ssl.ca.location": certifi.where(),
-            "message.timeout.ms": "15000",
+            "message.timeout.ms": "45000",
         })
     return _producer
 
