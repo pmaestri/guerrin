@@ -1,28 +1,32 @@
 # Test end-to-end — BreadBoss
 
-Guía para probar el flujo completo del sistema event-driven, desde la creación de un pedido hasta verificar todos los consumers.
+Guía para probar el flujo completo del sistema event-driven, desde la creación de un pedido hasta cerrarlo como entregado.
 
 ---
 
-## Flujo del sistema
+## Flujo del sistema (actualizado)
 
 ```
 POST /orders
    │
    ▼
-API Gateway (JWT Cognito)
+API Gateway (JWT Cognito) — CORS + throttling 50 req/s
    │
    ▼
-Lambda ingress  ──► publica ORDER_CREATED en Kafka topic "pedidos"
+Lambda ingress  ──► valida schema + precio desde DynamoDB breadboss-menu
+                ──► publica ORDER_CREATED en Kafka topic "pedidos"
+                ──► incluye customerEmail (del JWT) en el evento
                                 │
                                 ▼ fan-out paralelo
         ┌─────────────────┬─────┴─────────┬────────────────┐
         ▼                 ▼               ▼                ▼
  order-processor   kitchen-manager   stock-updater     notifier
- (DynamoDB         (Redis            (DynamoDB         (SNS + SES)
-  orders:           EN_PREPARACION    menu:             "Pedido OK"
-  RECIBIDO)         + publica         decrementa
-                    ORDER_READY)      stock)
+ (DynamoDB         (Redis            (DynamoDB         (SES →
+  orders:           EN_PREPARACION    menu:             customerEmail
+  RECIBIDO +        + DynamoDB        decrementa        "Pedido OK")
+  customerEmail)    EN_PREPARACION    stock)
+                    + publica
+                    ORDER_READY)
                           │
                           ▼
               Kafka topic "orders.ready"
@@ -30,113 +34,174 @@ Lambda ingress  ──► publica ORDER_CREATED en Kafka topic "pedidos"
               ┌───────────┴───────────┐
               ▼                       ▼
        delivery-tracker         notifier
-       (Redis EN_CAMINO         (SNS + SES
+       (Redis EN_CAMINO         (SES →
+        + DynamoDB EN_CAMINO     customerEmail
         + asigna driver)         "Pedido en camino")
+
+POST /orders/{id}/deliver
+   │
+   ▼
+order-finalizer  ──► DynamoDB status = ENTREGADO + tiempo_entrega_min
 ```
+
+Todos los consumers usan idempotencia via tabla `breadboss-processed` (TTL 24h).
 
 ---
 
 ## ⚠️ Cosas a saber antes de testear
 
-1. **El flujo nunca llega a `ENTREGADO`/`FINALIZADA` solo.** El último estado que setea algún handler es `EN_CAMINO` en Redis (delivery-tracker). En DynamoDB el pedido queda en `RECIBIDO` para siempre — no existe lambda que lo cierre. Hay que forzarlo a mano (ver Paso 5).
-2. **stock-updater bug**: arreglado (apuntaba a `ghostbite-menu` en vez de `breadboss-menu`). Requiere `make plan && make apply` para desplegar.
+1. **Cerrar el pedido requiere llamar `POST /orders/{id}/deliver`** — ya no hace falta tocar DynamoDB a mano. Ver Paso 5.
+2. **Los precios se validan contra el menú** — los `itemId` del body deben existir en `breadboss-menu`. Si la tabla está vacía, corrér el seed primero (Paso 1).
+3. **El email del JWT se propaga** — el notifier envía SES al email del usuario Cognito, no a un email fijo.
 
 ---
 
-## Paso 0 — Extraer valores de Terraform
+## Checklist de pruebas
+
+- [x] **Paso 0** — Extraer valores de Terraform
+- [x] **Paso 1** — Seed del menú ejecutado
+- [x] **Paso 2** — JWT obtenido correctamente
+- [x] **Paso 3** — `GET /menu` responde con items
+- [ ] **Paso 4** — `POST /orders` responde `201` con `orderId`
+- [ ] **Paso 5** — `GET /orders/{id}` retorna el pedido con `status: RECIBIDO`
+- [ ] **Paso 6a** — Log ingress muestra `status=201`
+- [ ] **Paso 6b** — Log order-processor muestra `action=saved`
+- [ ] **Paso 6c** — Log kitchen-manager muestra `action=en_preparacion` + `action=order_ready_published`
+- [ ] **Paso 6d** — Log stock-updater muestra `action=stock_updated`
+- [ ] **Paso 6e** — Log notifier (1ª vez) muestra `event_type=ORDER_CREATED action=email_sent`
+- [ ] **Paso 6f** — Log delivery-tracker muestra `action=en_camino`
+- [ ] **Paso 6g** — Log notifier (2ª vez) muestra `event_type=ORDER_READY action=email_sent`
+- [ ] **Paso 6h** — DynamoDB `breadboss-orders` tiene el item con `customerEmail`
+- [ ] **Paso 6i** — DynamoDB `breadboss-menu` bajó el stock de los items pedidos
+- [ ] **Paso 6j** — DynamoDB `breadboss-processed` tiene entradas por cada consumer
+- [ ] **Paso 7** — `POST /orders/{id}/deliver` responde con `status: ENTREGADO` y `tiempo_entrega_min`
+- [ ] **Paso 8** — Segunda llamada a `/deliver` devuelve el mismo resultado (idempotencia OK)
+
+---
+
+## Paso 0 — Extraer valores de Terraform (terminal)
+
+Estos valores los necesitás para configurar las variables de entorno en Postman.
 
 ```bash
 cd /Users/agustin/Documents/Projects/guerrin/BreadBoss
-
-export AWS_REGION=us-east-1
-export API_URL=$(terraform output -raw api_invoke_url)
-export USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-export CLIENT_ID=$(terraform output -raw cognito_client_id)
-export EMAIL="lanciramiro9@gmail.com"
-export PASS="Test1234!"
-
-echo "API_URL=$API_URL"
-echo "CLIENT_ID=$CLIENT_ID"
-echo "USER_POOL_ID=$USER_POOL_ID"
+terraform output -raw api_invoke_url
+terraform output -raw cognito_client_id
+terraform output -raw cognito_user_pool_id
 ```
+
+Copiar los valores y cargarlos en Postman como variables de entorno:
+
+| Variable       | Valor                            |
+| -------------- | -------------------------------- |
+| `API_URL`      | output de `api_invoke_url`       |
+| `CLIENT_ID`    | output de `cognito_client_id`    |
+| `USER_POOL_ID` | output de `cognito_user_pool_id` |
+| `AWS_REGION`   | `us-east-1`                      |
+| `EMAIL`        | `lanciramiro9@gmail.com`         |
+| `PASS`         | `Test1234!`                      |
+| `ID_TOKEN`     | _(se completa en Paso 2)_        |
+| `ORDER_ID`     | _(se completa en Paso 4)_        |
 
 ---
 
-## Paso 1 — (opcional) Seed del menú
+## Paso 1 — (opcional) Seed del menú (terminal)
 
-Carga 14 items en `breadboss-menu` y 30 pedidos históricos en `breadboss-orders`. Necesario si querés que `stock-updater` tenga items reales que decrementar.
+Carga 14 items en `breadboss-menu` y 30 pedidos históricos en `breadboss-orders`. **Necesario** para que ingress valide precios y stock-updater tenga items reales.
 
 ```bash
-python3 ../seed.py
+python3 /Users/agustin/Documents/Projects/guerrin/seed.py
 ```
 
 ---
 
 ## Paso 2 — Obtener JWT de Cognito
 
-### Opción A — AWS CLI (más simple)
+Pegá este curl en Postman (Import → Raw Text). La respuesta devuelve `AuthenticationResult.IdToken` — copiarlo a la variable `ID_TOKEN`.
 
-```bash
-export ID_TOKEN=$(aws cognito-idp initiate-auth \
-  --region "$AWS_REGION" \
-  --auth-flow USER_PASSWORD_AUTH \
-  --client-id "$CLIENT_ID" \
-  --auth-parameters "USERNAME=$EMAIL,PASSWORD=$PASS" \
-  --query 'AuthenticationResult.IdToken' \
-  --output text)
-
-echo "$ID_TOKEN" | head -c 60; echo "..."
-```
-
-### Opción B — curl puro contra Cognito
-
-```bash
-export ID_TOKEN=$(curl -s -X POST "https://cognito-idp.$AWS_REGION.amazonaws.com/" \
-  -H "Content-Type: application/x-amz-json-1.1" \
-  -H "X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth" \
-  -d "{
-    \"AuthFlow\": \"USER_PASSWORD_AUTH\",
-    \"ClientId\": \"$CLIENT_ID\",
-    \"AuthParameters\": {
-      \"USERNAME\": \"$EMAIL\",
-      \"PASSWORD\": \"$PASS\"
+```curl
+curl --location 'https://cognito-idp.{{AWS_REGION}}.amazonaws.com/' \
+--header 'Content-Type: application/x-amz-json-1.1' \
+--header 'X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth' \
+--data '{
+    "AuthFlow": "USER_PASSWORD_AUTH",
+    "ClientId": "{{CLIENT_ID}}",
+    "AuthParameters": {
+        "USERNAME": "{{EMAIL}}",
+        "PASSWORD": "{{PASS}}"
     }
-  }" | jq -r '.AuthenticationResult.IdToken')
-
-echo "$ID_TOKEN" | head -c 60; echo "..."
+}'
 ```
 
-Si devuelve `null` o `NEW_PASSWORD_REQUIRED`, ver troubleshooting al final.
+**Respuesta esperada:** JSON con `AuthenticationResult.IdToken`. Copiar ese valor a la variable `ID_TOKEN` en Postman.
+
+Si devuelve `NEW_PASSWORD_REQUIRED`, ver troubleshooting al final.
 
 ---
 
-## Paso 3 — Crear pedido (POST /orders)
+## Paso 3 — Consultar el menú disponible
 
-```bash
-curl -i -X POST "$API_URL/orders" \
-  -H "Authorization: Bearer $ID_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
+```curl
+curl --location '{{API_URL}}/menu' \
+--header 'Authorization: Bearer {{ID_TOKEN}}'
+```
+
+**Respuesta esperada:** array de items con `itemId`, `name`, `price`, `stock`. Usá los `itemId` reales del menú en el Paso 4.
+
+---
+
+## Paso 4 — Crear pedido
+
+Los precios en el body son ignorados — ingress los sobreescribe desde DynamoDB. Usá `itemId` que existan en el menú (del Paso 3).
+
+```curl
+curl --location '{{API_URL}}/orders' \
+--header 'Authorization: Bearer {{ID_TOKEN}}' \
+--header 'Content-Type: application/json' \
+--data '{
     "channel": "app_mobile",
     "deliveryAddress": "Av Corrientes 1234, CABA",
     "items": [
-      {"itemId": "b01", "name": "Smash Burger Clasica", "qty": 1, "price": 4500},
-      {"itemId": "d01", "name": "Coca Cola 500ml",      "qty": 1, "price": 1500}
+        {"itemId": "b01", "name": "Smash Burger Clasica", "qty": 1, "price": 0},
+        {"itemId": "d01", "name": "Coca Cola 500ml", "qty": 1, "price": 0}
     ]
-  }'
+}'
 ```
 
-**Respuesta esperada:** `HTTP/2 201` + body `{"orderId":"<uuid>","status":"RECIBIDO","message":"Pedido recibido!"}`.
+**Respuesta esperada:** `201` + body:
+```json
+{"orderId": "<uuid>", "status": "RECIBIDO", "message": "Pedido recibido!"}
+```
 
-Guardalo:
+Copiar el `orderId` devuelto a la variable `ORDER_ID` en Postman.
 
-```bash
-export ORDER_ID="<el uuid devuelto>"
+---
+
+## Paso 5 — Consultar estado del pedido
+
+Esperar 5–10 segundos para que los consumers procesen el evento.
+
+```curl
+curl --location '{{API_URL}}/orders/{{ORDER_ID}}' \
+--header 'Authorization: Bearer {{ID_TOKEN}}'
+```
+
+**Respuesta esperada:**
+```json
+{
+  "orderId": "<uuid>",
+  "status": "RECIBIDO",
+  "customerEmail": "lanciramiro9@gmail.com",
+  "channel": "app_mobile",
+  "deliveryAddress": "Av Corrientes 1234, CABA",
+  "items": [...],
+  "timestamp": 1234567890123
+}
 ```
 
 ---
 
-## Paso 4 — Verificar fan-out en la consola AWS
+## Paso 6 — Verificar fan-out en la consola AWS
 
 A los 5–10 segundos del POST, Kafka dispara los 4 consumers. Abrí cada link y refrescá los **log streams** más recientes:
 
@@ -150,47 +215,53 @@ A los 5–10 segundos del POST, Kafka dispara los 4 consumers. Abrí cada link y
 | Log delivery-tracker | https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fbreadboss-delivery-tracker |
 | DynamoDB `breadboss-orders` | https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=breadboss-orders |
 | DynamoDB `breadboss-menu` | https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=breadboss-menu |
+| DynamoDB `breadboss-processed` | https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=breadboss-processed |
 
 ### Qué buscar en los logs
 
 | Lambda | Mensaje esperado |
 |---|---|
-| ingress | invocación + 201 |
-| order-processor | `Order <uuid> saved to DynamoDB` |
-| kitchen-manager | `Order <uuid> → EN_PREPARACION, ORDER_READY publicado` |
-| stock-updater | `Order <uuid> → stock actualizado para N items` |
-| notifier (1ª invocación) | `Order <uuid> → notificación enviada (ORDER_CREATED)` |
-| delivery-tracker | `Order <uuid> → EN_CAMINO, asignado a driver_0X` |
-| notifier (2ª invocación) | `Order <uuid> → notificación enviada (ORDER_READY)` |
+| ingress | `order_id=<uuid> status=201` |
+| order-processor | `order_id=<uuid> action=saved status=RECIBIDO` |
+| kitchen-manager | `order_id=<uuid> action=en_preparacion` + `action=order_ready_published` |
+| stock-updater | `order_id=<uuid> action=stock_updated items_updated=2` |
+| notifier (1ª vez) | `order_id=<uuid> event_type=ORDER_CREATED action=email_sent` |
+| delivery-tracker | `order_id=<uuid> action=en_camino driver=driver_0X` |
+| notifier (2ª vez) | `order_id=<uuid> event_type=ORDER_READY action=email_sent` |
 
-En DynamoDB `breadboss-orders` el item nuevo aparece con `status: RECIBIDO`.
+**En DynamoDB `breadboss-orders`:** el item tiene `status: RECIBIDO` y `customerEmail` guardado.
 
-En `breadboss-menu` el stock de los items pedidos debe haber bajado en la cantidad pedida.
+**En DynamoDB `breadboss-menu`:** el stock de los items pedidos bajó en la cantidad pedida.
+
+**En DynamoDB `breadboss-processed`:** aparecen entradas `(orderId, consumer)` por cada consumer que procesó el pedido.
 
 ---
 
-## Paso 5 — Forzar estado `ENTREGADO` manualmente
+## Paso 7 — Cerrar pedido como entregado
 
-Ningún lambda cierra el pedido, así que lo actualizamos a mano:
-
-```bash
-TS=$(aws dynamodb query \
-  --table-name breadboss-orders \
-  --key-condition-expression "orderId = :oid" \
-  --expression-attribute-values "{\":oid\":{\"S\":\"$ORDER_ID\"}}" \
-  --projection-expression "#ts" \
-  --expression-attribute-names '{"#ts":"timestamp"}' \
-  --query 'Items[0].#ts.N' --output text)
-
-aws dynamodb update-item \
-  --table-name breadboss-orders \
-  --key "{\"orderId\":{\"S\":\"$ORDER_ID\"},\"timestamp\":{\"N\":\"$TS\"}}" \
-  --update-expression "SET #s = :v" \
-  --expression-attribute-names '{"#s":"status"}' \
-  --expression-attribute-values '{":v":{"S":"ENTREGADO"}}'
+```curl
+curl --location --request POST '{{API_URL}}/orders/{{ORDER_ID}}/deliver' \
+--header 'Authorization: Bearer {{ID_TOKEN}}'
 ```
 
-Refrescá el item en la consola DynamoDB — debe figurar `status: ENTREGADO`.
+**Respuesta esperada:**
+```json
+{
+  "orderId": "<uuid>",
+  "status": "ENTREGADO",
+  "tiempo_entrega_min": 12
+}
+```
+
+Verificar con el curl del Paso 5 que el status cambió a `ENTREGADO`.
+
+---
+
+## Paso 8 — Verificar idempotencia (opcional)
+
+Repetir el curl del Paso 7 con el mismo `ORDER_ID`. Debe devolver el mismo resultado sin errores ni duplicados.
+
+También podés repetir el Paso 4 con el mismo body — cada llamada genera un `orderId` nuevo (UUID), por lo que no hay colisión a nivel de pedidos.
 
 ---
 
@@ -198,20 +269,42 @@ Refrescá el item en la consola DynamoDB — debe figurar `status: ENTREGADO`.
 
 | Síntoma | Causa probable / solución |
 |---|---|
-| `curl` POST devuelve 401/403 | Token venció (~1 h) o falta `Authorization: Bearer ...`. Reintentar Paso 2. |
-| `curl` POST devuelve 502/timeout | Cold start de ingress con VPC + IAM auth a MSK (10–20 s la primera vez). Reintentar. |
-| Pedido no aparece en DynamoDB | Revisar logs `order-processor`. Si no se invocó, el event source mapping Kafka no consume — verificar en consola Lambda → función → Triggers. |
-| `InitiateAuth` falla con `NotAuthorizedException` | La pass del user quedó "temporal". Forzar como permanente: `aws cognito-idp admin-set-user-password --user-pool-id "$USER_POOL_ID" --username "$EMAIL" --password "$PASS" --permanent` |
-| `stock-updater` sigue con `ResourceNotFoundException` | El fix no se desplegó. Correr `make plan && make apply` en `BreadBoss/`. |
+| `POST /orders` devuelve 400 con `item not found` | El `itemId` no existe en `breadboss-menu`. Corrér seed (Paso 1) y verificar con `GET /menu`. |
+| `POST /orders` devuelve 401/403 | Token venció (~1 h). Reintentar Paso 2. |
+| `POST /orders` devuelve 502/timeout | Cold start de ingress con VPC + MSK (~10–20 s la primera vez). Reintentar. |
+| `GET /orders/{id}` devuelve 404 | El order-processor aún no procesó el evento. Esperar 5–10 s y reintentar. |
+| Pedido no aparece en DynamoDB | Revisar logs `order-processor`. Si no se invocó, verificar Lambda → función → Triggers (event source mapping Kafka). |
+| stock-updater no actualiza stock | Revisar logs `stock-updater`. Si hay `already_processed`, el consumer ya corrió para ese pedido (idempotencia activa). |
+| `InitiateAuth` falla con `NotAuthorizedException` | Password temporal. Forzar permanente: `aws cognito-idp admin-set-user-password --user-pool-id "$USER_POOL_ID" --username "$EMAIL" --password "$PASS" --permanent` |
+| `POST /orders/{id}/deliver` devuelve 404 | El `ORDER_ID` no existe. Verificar que el Paso 4 fue exitoso. |
 
 ---
 
-## Endpoints y recursos (referencia rápida)
+## Endpoints completos (referencia rápida para Postman)
 
-- **API Gateway**: `$(terraform output -raw api_invoke_url)/orders` (POST, JWT)
+| Método | Endpoint | Auth | Body |
+|---|---|---|---|
+| `GET` | `{{API_URL}}/menu` | Bearer JWT | — |
+| `POST` | `{{API_URL}}/orders` | Bearer JWT | JSON con `channel`, `deliveryAddress`, `items[]` |
+| `GET` | `{{API_URL}}/orders/{{ORDER_ID}}` | Bearer JWT | — |
+| `POST` | `{{API_URL}}/orders/{{ORDER_ID}}/deliver` | Bearer JWT | — |
+
+### Variables de entorno para Postman
+
+```
+API_URL       = <terraform output -raw api_invoke_url>
+ID_TOKEN      = <obtenido en Paso 2>
+ORDER_ID      = <devuelto por POST /orders>
+```
+
+---
+
+## Recursos AWS (referencia)
+
+- **API Gateway**: `$(terraform output -raw api_invoke_url)`
 - **Cognito user pool**: `$(terraform output -raw cognito_user_pool_id)`
 - **Cognito app client**: `$(terraform output -raw cognito_client_id)`
 - **MSK topics**: `pedidos`, `orders.ready`
-- **DynamoDB tables**: `breadboss-orders`, `breadboss-menu`, `breadboss_resumenes`, `breadboss_metricas`
+- **DynamoDB tables**: `breadboss-orders`, `breadboss-menu`, `breadboss-processed`, `breadboss_resumenes`, `breadboss_metricas`
 - **Redis (ElastiCache Serverless)**: `$(terraform output -raw redis_endpoint)` — solo accesible desde VPC
 - **CloudWatch dashboard**: `$(terraform output -raw cloudwatch_dashboard_url)`
