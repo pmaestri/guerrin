@@ -1,0 +1,248 @@
+{
+	"info": {
+		"_postman_id": "3e1f4458-af11-4768-8b2b-736dbc2f6588",
+		"name": "BreadBoss",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37875491",
+		"_collection_link": "https://cloudy-equinox-713406.postman.co/workspace/My-Workspace~7204850b-d58a-457e-8180-e795a23d35a3/collection/37875491-3e1f4458-af11-4768-8b2b-736dbc2f6588?action=share&source=collection_link&creator=37875491"
+	},
+	"item": [
+		{
+			"name": "GET ORDER",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{ID_TOKEN}}"
+					}
+				],
+				"url": {
+					"raw": "{{API_URL}}/orders/{{ORDER_ID}}",
+					"host": [
+						"{{API_URL}}"
+					],
+					"path": [
+						"orders",
+						"{{ORDER_ID}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LOGIN",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"  const body = pm.response.json();",
+							"  // Guarda el IdToken de Cognito",
+							"  const idToken = body.AuthenticationResult?.IdToken;",
+							"  if (idToken) {",
+							"      pm.collectionVariables.set(\"ID_TOKEN\", idToken);",
+							"      console.log(\"ID_TOKEN guardado\");",
+							"  }"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-amz-json-1.1"
+					},
+					{
+						"key": "X-Amz-Target",
+						"value": "AWSCognitoIdentityProviderService.InitiateAuth"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"AuthFlow\": \"USER_PASSWORD_AUTH\",\n    \"ClientId\": \"{{CLIENT_ID}}\",\n    \"AuthParameters\": {\n        \"USERNAME\": \"{{EMAIL}}\",\n        \"PASSWORD\": \"{{PASS}}\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "text"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://cognito-idp.{{AWS_REGION}}.amazonaws.com/",
+					"protocol": "https",
+					"host": [
+						"cognito-idp",
+						"{{AWS_REGION}}",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET MENU",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{ID_TOKEN}}"
+					}
+				],
+				"url": {
+					"raw": "{{API_URL}}/menu",
+					"host": [
+						"{{API_URL}}"
+					],
+					"path": [
+						"menu"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST ORDER",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"  const body = pm.response.json();",
+							"  // Genera un nuevo orderId para el próximo request",
+							"  const orderId = body.orderId;",
+							"  pm.collectionVariables.set(\"ORDER_ID\", orderId);",
+							"  console.log(\"ORDER_ID generado:\", orderId);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{ID_TOKEN}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"channel\": \"app_mobile\",\n    \"deliveryAddress\": \"Av Corrientes 1234\",\n    \"items\": [\n        {\n            \"itemId\": \"b01\",\n            \"name\": \"Smash Burger Clásica\",\n            \"qty\": 1\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{API_URL}}/orders",
+					"host": [
+						"{{API_URL}}"
+					],
+					"path": [
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TERMINAR ORDEN",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{ID_TOKEN}}"
+					}
+				],
+				"url": {
+					"raw": "{{API_URL}}/orders/{{ORDER_ID}}/deliver",
+					"host": [
+						"{{API_URL}}"
+					],
+					"path": [
+						"orders",
+						"{{ORDER_ID}}",
+						"deliver"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "API_URL",
+			"value": ""
+		},
+		{
+			"key": "CLIENT_ID",
+			"value": ""
+		},
+		{
+			"key": "USER_POOL_ID",
+			"value": ""
+		},
+		{
+			"key": "AWS_REGION",
+			"value": ""
+		},
+		{
+			"key": "EMAIL",
+			"value": ""
+		},
+		{
+			"key": "PASS",
+			"value": ""
+		},
+		{
+			"key": "ID_TOKEN",
+			"value": ""
+		},
+		{
+			"key": "ORDER_ID",
+			"value": ""
+		}
+	]
+}

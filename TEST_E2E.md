@@ -62,20 +62,20 @@ Todos los consumers usan idempotencia via tabla `breadboss-processed` (TTL 24h).
 - [x] **Paso 1** — Seed del menú ejecutado
 - [x] **Paso 2** — JWT obtenido correctamente
 - [x] **Paso 3** — `GET /menu` responde con items
-- [ ] **Paso 4** — `POST /orders` responde `201` con `orderId`
-- [ ] **Paso 5** — `GET /orders/{id}` retorna el pedido con `status: RECIBIDO`
-- [ ] **Paso 6a** — Log ingress muestra `status=201`
-- [ ] **Paso 6b** — Log order-processor muestra `action=saved`
-- [ ] **Paso 6c** — Log kitchen-manager muestra `action=en_preparacion` + `action=order_ready_published`
-- [ ] **Paso 6d** — Log stock-updater muestra `action=stock_updated`
-- [ ] **Paso 6e** — Log notifier (1ª vez) muestra `event_type=ORDER_CREATED action=email_sent`
-- [ ] **Paso 6f** — Log delivery-tracker muestra `action=en_camino`
-- [ ] **Paso 6g** — Log notifier (2ª vez) muestra `event_type=ORDER_READY action=email_sent`
-- [ ] **Paso 6h** — DynamoDB `breadboss-orders` tiene el item con `customerEmail`
-- [ ] **Paso 6i** — DynamoDB `breadboss-menu` bajó el stock de los items pedidos
-- [ ] **Paso 6j** — DynamoDB `breadboss-processed` tiene entradas por cada consumer
-- [ ] **Paso 7** — `POST /orders/{id}/deliver` responde con `status: ENTREGADO` y `tiempo_entrega_min`
-- [ ] **Paso 8** — Segunda llamada a `/deliver` devuelve el mismo resultado (idempotencia OK)
+- [x] **Paso 4** — `POST /orders` responde `201` con `orderId`
+- [x] **Paso 5** — `GET /orders/{id}` retorna el pedido con `status: RECIBIDO`
+- [x] **Paso 6a** — Log ingress muestra `status=201`
+- [x] **Paso 6b** — Log order-processor muestra `action=saved`
+- [x] **Paso 6c** — Log kitchen-manager muestra `action=en_preparacion` + `action=order_ready_published`
+- [x] **Paso 6d** — Log stock-updater muestra `action=stock_updated`
+- [x] **Paso 6e** — Log notifier (1ª vez) muestra `event_type=ORDER_CREATED action=email_sent`
+- [x] **Paso 6f** — Log delivery-tracker muestra `action=en_camino`
+- [x] **Paso 6g** — Log notifier (2ª vez) muestra `event_type=ORDER_READY action=email_sent`
+- [x] **Paso 6h** — DynamoDB `breadboss-orders` tiene el item con `customerEmail`
+- [x] **Paso 6i** — DynamoDB `breadboss-menu` bajó el stock de los items pedidos
+- [x] **Paso 6j** — DynamoDB `breadboss-processed` tiene entradas por cada consumer
+- [x] **Paso 7** — `POST /orders/{id}/deliver` responde con `status: ENTREGADO` y `tiempo_entrega_min`
+- [x] **Paso 8** — Segunda llamada a `/deliver` devuelve el mismo resultado (idempotencia OK)
 
 ---
 
