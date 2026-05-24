@@ -1,13 +1,15 @@
 import json
 import logging
 import os
+import socket
 import uuid
 import time
 
 import boto3
+import certifi
 from boto3.dynamodb.conditions import Key
-from kafka import KafkaProducer
-from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import MSKAuthTokenProvider
+from confluent_kafka import Producer
+from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import generate_auth_token
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -17,17 +19,37 @@ dynamodb = boto3.resource("dynamodb")
 menu_table = dynamodb.Table(os.environ.get("MENU_TABLE", "breadboss-menu"))
 
 
+def _oauth_cb(oauth_config):
+    try:
+        region = os.environ["AWS_REGION"]
+        token, expiry_ms = generate_auth_token(region)
+        logger.info(json.dumps({"handler": "ingress", "msg": "oauth token generado OK"}))
+        return token, expiry_ms / 1000
+    except Exception as e:
+        logger.error(json.dumps({"handler": "ingress", "msg": f"oauth_cb error: {e}"}))
+        raise
+
+
 def get_producer():
     global _producer
     if _producer is None:
-        tp = MSKAuthTokenProvider(region=os.environ["AWS_REGION"])
-        _producer = KafkaProducer(
-            bootstrap_servers=os.environ["MSK_BOOTSTRAP"].split(","),
-            security_protocol="SASL_SSL",
-            sasl_mechanism="OAUTHBEARER",
-            sasl_oauth_token_provider=tp,
-            value_serializer=lambda v: json.dumps(v).encode(),
-        )
+        bootstrap = os.environ["MSK_BOOTSTRAP"]
+        logger.info(json.dumps({"handler": "ingress", "msg": f"creando producer, bootstrap={bootstrap}"}))
+        host, port = bootstrap.split(":")
+        try:
+            with socket.create_connection((host, int(port)), timeout=5) as s:
+                logger.info(json.dumps({"handler": "ingress", "msg": f"TCP OK a {host}:{port}"}))
+        except Exception as e:
+            logger.error(json.dumps({"handler": "ingress", "msg": f"TCP FALLO a {host}:{port}: {e}"}))
+        _producer = Producer({
+            "bootstrap.servers": bootstrap,
+            "security.protocol": "SASL_SSL",
+            "sasl.mechanism": "OAUTHBEARER",
+            "oauth_cb": _oauth_cb,
+            "ssl.ca.location": certifi.where(),
+            "message.timeout.ms": "12000",
+            "socket.connection.setup.timeout.ms": "8000",
+        })
     return _producer
 
 
@@ -96,11 +118,22 @@ def handler(event, context):
         },
     }
 
-    producer = get_producer()
-    producer.send("pedidos", key=order_id.encode(), value=order_event)
-    producer.flush()
+    delivery_errors = []
 
-    logger.info(json.dumps({"orderId": order_id, "handler": "ingress", "msg": "ORDER_CREATED publicado", "total": total}))
+    def _delivery_cb(err, msg):
+        if err:
+            delivery_errors.append(str(err))
+            logger.error(json.dumps({"orderId": order_id, "handler": "ingress", "msg": f"delivery error: {err}"}))
+
+    producer = get_producer()
+    producer.produce("pedidos", key=order_id.encode(), value=json.dumps(order_event).encode(), callback=_delivery_cb)
+    remaining = producer.flush(timeout=15)
+    producer.poll(0)  # drain pending delivery callbacks to capture errors
+    if remaining > 0 or delivery_errors:
+        logger.error(json.dumps({"orderId": order_id, "handler": "ingress", "msg": f"fallo al publicar evento, remaining={remaining}, errors={delivery_errors}"}))
+        return {"statusCode": 500, "body": json.dumps({"error": "Error publicando evento"})}
+
+    logger.info(json.dumps({"orderId": order_id, "handler": "ingress", "msg": "ORDER_CREATED publicado", "total": str(total)}))
 
     return {
         "statusCode": 201,

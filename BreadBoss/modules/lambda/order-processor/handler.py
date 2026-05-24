@@ -1,7 +1,9 @@
 import json
 import logging
 import base64
+import os
 import time
+from decimal import Decimal
 
 import boto3
 
@@ -9,7 +11,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("breadboss-orders")
+table = dynamodb.Table(os.environ.get("ORDERS_TABLE", "breadboss-orders"))
 
 
 def handler(event, context):
@@ -28,8 +30,8 @@ def handler(event, context):
                 "status":          data["status"],
                 "customerId":      data["customerId"],
                 "customerEmail":   data.get("customerEmail", ""),
-                "items":           data["items"],
-                "total":           str(data["total"]),
+                "items":           [{**i, "price": Decimal(str(i["price"]))} for i in data["items"]],
+                "total":           Decimal(str(data["total"])),
                 "deliveryAddress": data["deliveryAddress"],
                 "timestamps": {
                     "received": payload["timestamp"]

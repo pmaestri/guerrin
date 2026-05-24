@@ -1,6 +1,7 @@
 import json
 import logging
 import base64
+import os
 import sys
 
 import boto3
@@ -12,7 +13,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
-menu_table = dynamodb.Table("breadboss-menu")
+menu_table = dynamodb.Table(os.environ.get("MENU_TABLE", "breadboss-menu"))
 
 
 def handler(event, context):

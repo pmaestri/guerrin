@@ -8,8 +8,8 @@ import time
 import boto3
 import redis
 from boto3.dynamodb.conditions import Key
-from kafka import KafkaProducer
-from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+from confluent_kafka import Producer
+from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import generate_auth_token
 
 sys.path.insert(0, "/var/task/shared")
 from idempotency import already_processed  # noqa: E402
@@ -24,6 +24,12 @@ _redis = None
 _producer = None
 
 
+def _oauth_cb(oauth_config):
+    region = os.environ.get("AWS_REGION_NAME", os.environ.get("AWS_REGION", "us-east-1"))
+    token, expiry_ms = generate_auth_token(region)
+    return token, expiry_ms / 1000
+
+
 def get_redis():
     global _redis
     if _redis is None:
@@ -34,14 +40,12 @@ def get_redis():
 def get_producer():
     global _producer
     if _producer is None:
-        tp = MSKAuthTokenProvider(region=os.environ["AWS_REGION_NAME"])
-        _producer = KafkaProducer(
-            bootstrap_servers=os.environ["MSK_BOOTSTRAP"].split(","),
-            security_protocol="SASL_SSL",
-            sasl_mechanism="OAUTHBEARER",
-            sasl_oauth_token_provider=tp,
-            value_serializer=lambda v: json.dumps(v).encode(),
-        )
+        _producer = Producer({
+            "bootstrap.servers": os.environ["MSK_BOOTSTRAP"],
+            "security.protocol": "SASL_SSL",
+            "sasl.mechanism": "OAUTHBEARER",
+            "oauth_cb": _oauth_cb,
+        })
     return _producer
 
 
@@ -87,10 +91,10 @@ def handler(event, context):
 
             _update_dynamo_status(order_id, "EN_PREPARACION")
 
-            producer.send(
+            producer.produce(
                 "orders.ready",
                 key=order_id.encode(),
-                value={
+                value=json.dumps({
                     "eventType": "ORDER_READY",
                     "timestamp": now_ms,
                     "data": {
@@ -100,7 +104,7 @@ def handler(event, context):
                         "total": data.get("total"),
                         "status": "LISTO",
                     },
-                },
+                }).encode(),
             )
 
             logger.info(json.dumps({"orderId": order_id, "handler": "kitchen-manager", "msg": "EN_PREPARACION, ORDER_READY publicado"}))
