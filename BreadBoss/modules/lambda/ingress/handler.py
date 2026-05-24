@@ -9,10 +9,20 @@ import boto3
 import certifi
 from boto3.dynamodb.conditions import Key
 from confluent_kafka import Producer
+from confluent_kafka.admin import AdminClient, NewTopic
 from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import generate_auth_token
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+
+kafka_logger = logging.getLogger("kafka")
+kafka_logger.setLevel(logging.DEBUG)
+if not kafka_logger.handlers:
+    h = logging.StreamHandler()
+    h.setLevel(logging.DEBUG)
+    h.setFormatter(logging.Formatter("KAFKA-%(levelname)s: %(message)s"))
+    kafka_logger.addHandler(h)
+    kafka_logger.propagate = False
 
 _producer = None
 dynamodb = boto3.resource("dynamodb")
@@ -30,25 +40,51 @@ def _oauth_cb(oauth_config):
         raise
 
 
+def _error_cb(err):
+    logger.error(json.dumps({"handler": "ingress", "msg": f"kafka error_cb: code={err.code()} name={err.name()} str={err.str()}"}))
+
+
+def _log_cb(level, fac, msg):
+    logger.info(json.dumps({"handler": "ingress", "msg": f"kafka log[{level}][{fac}]: {msg}"}))
+
+
+def _ensure_topics(bootstrap):
+    admin = AdminClient({
+        "bootstrap.servers": bootstrap,
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "oauth_cb": _oauth_cb,
+        "ssl.ca.location": certifi.where(),
+    })
+    topics = [
+        NewTopic("pedidos", num_partitions=3, replication_factor=3),
+        NewTopic("orders.ready", num_partitions=3, replication_factor=3),
+    ]
+    futures = admin.create_topics(topics, request_timeout=15)
+    for name, fut in futures.items():
+        try:
+            fut.result()
+            logger.info(json.dumps({"handler": "ingress", "msg": f"topic creado: {name}"}))
+        except Exception as e:
+            if "already exists" in str(e).lower() or "TOPIC_ALREADY_EXISTS" in str(e):
+                logger.info(json.dumps({"handler": "ingress", "msg": f"topic ya existe: {name}"}))
+            else:
+                logger.error(json.dumps({"handler": "ingress", "msg": f"error creando topic {name}: {e}"}))
+
+
 def get_producer():
     global _producer
     if _producer is None:
         bootstrap = os.environ["MSK_BOOTSTRAP"]
         logger.info(json.dumps({"handler": "ingress", "msg": f"creando producer, bootstrap={bootstrap}"}))
-        host, port = bootstrap.split(":")
-        try:
-            with socket.create_connection((host, int(port)), timeout=5) as s:
-                logger.info(json.dumps({"handler": "ingress", "msg": f"TCP OK a {host}:{port}"}))
-        except Exception as e:
-            logger.error(json.dumps({"handler": "ingress", "msg": f"TCP FALLO a {host}:{port}: {e}"}))
+        _ensure_topics(bootstrap)
         _producer = Producer({
             "bootstrap.servers": bootstrap,
             "security.protocol": "SASL_SSL",
             "sasl.mechanism": "OAUTHBEARER",
             "oauth_cb": _oauth_cb,
             "ssl.ca.location": certifi.where(),
-            "message.timeout.ms": "12000",
-            "socket.connection.setup.timeout.ms": "8000",
+            "message.timeout.ms": "15000",
         })
     return _producer
 
@@ -127,7 +163,7 @@ def handler(event, context):
 
     producer = get_producer()
     producer.produce("pedidos", key=order_id.encode(), value=json.dumps(order_event).encode(), callback=_delivery_cb)
-    remaining = producer.flush(timeout=15)
+    remaining = producer.flush(timeout=20)
     producer.poll(0)  # drain pending delivery callbacks to capture errors
     if remaining > 0 or delivery_errors:
         logger.error(json.dumps({"orderId": order_id, "handler": "ingress", "msg": f"fallo al publicar evento, remaining={remaining}, errors={delivery_errors}"}))
