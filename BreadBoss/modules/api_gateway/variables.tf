@@ -11,3 +11,5 @@ variable "order_reader_arn" { type = string }
 variable "order_reader_name" { type = string }
 variable "menu_reader_arn" { type = string }
 variable "menu_reader_name" { type = string }
+variable "order_ready_arn" { type = string }
+variable "order_ready_name" { type = string }

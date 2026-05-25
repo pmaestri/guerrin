@@ -80,6 +80,8 @@ module "api_gateway" {
   order_reader_name    = module.lambda.order_reader_name
   menu_reader_arn      = module.lambda.menu_reader_arn
   menu_reader_name     = module.lambda.menu_reader_name
+  order_ready_arn      = module.lambda.order_ready_arn
+  order_ready_name     = module.lambda.order_ready_name
 }
 
 module "cloudwatch" {
