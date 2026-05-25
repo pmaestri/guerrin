@@ -724,6 +724,10 @@ html, body {
     background: var(--accent);
 }
 
+.stepper-node:last-child .stepper-line {
+    display: none;
+}
+
 .tracking-meta {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
