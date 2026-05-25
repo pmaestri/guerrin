@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BreadBoss · Menú</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">Bread Boss</div>
+      <nav class="nav">
+        <a href="menu.html">Menú</a>
+        <a href="tracking.html">Mis pedidos</a>
+        <span class="email-pill" id="emailPill"></span>
+        <button class="btn btn-ghost" id="logoutBtn">Salir</button>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <h1>Menú del día</h1>
+    </div>
+
+    <div class="menu-layout">
+      <div class="menu-grid" id="menuGrid">
+        <div class="empty-state">Cargando menú...</div>
+      </div>
+
+      <aside class="cart-panel">
+        <h2>Tu pedido</h2>
+        <div class="cart-items" id="cartItems"></div>
+        <div class="cart-total">
+          <span>Total</span>
+          <span id="cartTotal">$0</span>
+        </div>
+        <input type="text" class="address-input" id="addressInput" placeholder="Dirección de entrega" />
+        <button class="btn" id="placeOrderBtn" style="width: 100%;">Hacer pedido</button>
+        <div class="error-msg" id="errorMsg"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    BB_AUTH.requireAuth();
+
+    document.getElementById("emailPill").textContent = BB_AUTH.getEmail() || "";
+    document.getElementById("logoutBtn").addEventListener("click", () => BB_AUTH.logout());
+
+    let menuItems = [];
+    let cart = JSON.parse(localStorage.getItem("bb_cart") || "{}");
+
+    function saveCart() {
+      localStorage.setItem("bb_cart", JSON.stringify(cart));
+    }
+
+    function renderMenu() {
+      const grid = document.getElementById("menuGrid");
+      if (menuItems.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No hay items en el menú.</div>';
+        return;
+      }
+      grid.innerHTML = menuItems.map(item => `
+        <div class="menu-card">
+          <div class="name">${escapeHtml(item.name || item.itemId)}</div>
+          <div class="price">$${formatPrice(item.price)}</div>
+          ${item.stock !== undefined ? `<div class="stock">Stock: ${item.stock}</div>` : ""}
+          <button class="btn" data-id="${escapeHtml(item.itemId)}">Agregar</button>
+        </div>
+      `).join("");
+      grid.querySelectorAll("button[data-id]").forEach(btn => {
+        btn.addEventListener("click", () => addToCart(btn.dataset.id));
+      });
+    }
+
+    function addToCart(itemId) {
+      cart[itemId] = (cart[itemId] || 0) + 1;
+      saveCart();
+      renderCart();
+    }
+
+    function setQty(itemId, qty) {
+      if (qty <= 0) delete cart[itemId];
+      else cart[itemId] = qty;
+      saveCart();
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById("cartItems");
+      const entries = Object.entries(cart);
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="cart-empty">Carrito vacío</div>';
+        document.getElementById("cartTotal").textContent = "$0";
+        return;
+      }
+      let total = 0;
+      container.innerHTML = entries.map(([id, qty]) => {
+        const item = menuItems.find(m => m.itemId === id);
+        const price = item ? item.price : 0;
+        const subtotal = price * qty;
+        total += subtotal;
+        return `
+          <div class="cart-item">
+            <span>${escapeHtml(item ? (item.name || id) : id)}</span>
+            <div class="qty-ctrl">
+              <button data-dec="${escapeHtml(id)}">−</button>
+              <span>${qty}</span>
+              <button data-inc="${escapeHtml(id)}">+</button>
+            </div>
+            <span>$${formatPrice(subtotal)}</span>
+          </div>
+        `;
+      }).join("");
+      document.getElementById("cartTotal").textContent = `$${formatPrice(total)}`;
+
+      container.querySelectorAll("button[data-inc]").forEach(btn => {
+        btn.addEventListener("click", () => setQty(btn.dataset.inc, (cart[btn.dataset.inc] || 0) + 1));
+      });
+      container.querySelectorAll("button[data-dec]").forEach(btn => {
+        btn.addEventListener("click", () => setQty(btn.dataset.dec, (cart[btn.dataset.dec] || 0) - 1));
+      });
+    }
+
+    function formatPrice(n) {
+      return Number(n || 0).toFixed(2);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    document.getElementById("placeOrderBtn").addEventListener("click", async () => {
+      const errorMsg = document.getElementById("errorMsg");
+      const btn = document.getElementById("placeOrderBtn");
+      errorMsg.textContent = "";
+      const address = document.getElementById("addressInput").value.trim();
+      if (!address) {
+        errorMsg.textContent = "Falta dirección de entrega";
+        return;
+      }
+      const entries = Object.entries(cart);
+      if (entries.length === 0) {
+        errorMsg.textContent = "El carrito está vacío";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+      try {
+        const items = entries.map(([itemId, qty]) => ({ itemId, qty }));
+        const result = await BB_API.createOrder({ deliveryAddress: address, items });
+        localStorage.setItem("bb_last_order_id", result.orderId);
+        localStorage.removeItem("bb_cart");
+        window.location.href = `tracking.html?orderId=${encodeURIComponent(result.orderId)}`;
+      } catch (e) {
+        errorMsg.textContent = e.message;
+        btn.disabled = false;
+        btn.textContent = "Hacer pedido";
+      }
+    });
+
+    (async function init() {
+      try {
+        const data = await BB_API.getMenu();
+        menuItems = Array.isArray(data) ? data : (data.items || []);
+        renderMenu();
+        renderCart();
+      } catch (e) {
+        document.getElementById("menuGrid").innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

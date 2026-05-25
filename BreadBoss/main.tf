@@ -101,3 +101,8 @@ module "auditor" {
   openai_api_key       = var.openai_api_key
   aws_region           = var.aws_region
 }
+
+module "frontend" {
+  source = "./modules/frontend"
+  prefix = var.prefix
+}

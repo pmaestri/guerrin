@@ -384,3 +384,463 @@ html, body {
     .revenue-meta { grid-template-columns: 1fr; }
     .revenue-main { font-size: 42px; }
 }
+
+/* ============================================================
+   APP SCREENS — login, menu, tracking, kitchen
+   ============================================================ */
+
+.app-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 48px 80px;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 40px;
+}
+
+.app-header .brand {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+}
+
+.app-header .nav {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+.app-header .nav a {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.app-header .nav a:hover { color: var(--accent); }
+
+.app-header .email-pill {
+    font-size: 12px;
+    color: var(--ink-mute);
+    padding: 6px 12px;
+    background: var(--bg-soft);
+    border-radius: 999px;
+}
+
+.btn {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s, border 0.15s;
+}
+
+.btn:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+.btn.btn-ghost {
+    background: transparent;
+    color: var(--accent);
+}
+
+.btn.btn-ghost:hover { background: var(--bg-soft); }
+
+.btn.btn-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- login ---------- */
+.login-wrap {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 40px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 40px 36px;
+}
+
+.login-card h1 {
+    font-size: 26px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.login-card .subtitle {
+    font-size: 13px;
+    color: var(--ink-mute);
+    margin-bottom: 28px;
+}
+
+.login-form { display: grid; gap: 16px; }
+
+.login-form label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.login-form input {
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+}
+
+.login-form input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.error-msg {
+    font-size: 13px;
+    color: var(--danger);
+    margin-top: 8px;
+    min-height: 18px;
+}
+
+/* ---------- menu + cart ---------- */
+.menu-layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 40px;
+    align-items: start;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.menu-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.menu-card .name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.menu-card .price {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.menu-card .stock {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.cart-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    position: sticky;
+    top: 24px;
+}
+
+.cart-panel h2 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+}
+
+.cart-items { display: grid; gap: 12px; margin-bottom: 18px; }
+
+.cart-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.cart-item .qty-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cart-item .qty-ctrl button {
+    width: 24px; height: 24px;
+    font-size: 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+.cart-empty {
+    font-size: 13px;
+    color: var(--ink-mute);
+    padding: 16px 0;
+    text-align: center;
+}
+
+.cart-total {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+.address-input {
+    width: 100%;
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: #fff;
+}
+
+/* ---------- tracking stepper ---------- */
+.tracking-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 36px;
+}
+
+.tracking-card .order-id {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+}
+
+.tracking-card .current-status {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 28px;
+}
+
+.stepper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-bottom: 32px;
+    position: relative;
+}
+
+.stepper-node {
+    text-align: center;
+    position: relative;
+}
+
+.stepper-node .dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--line);
+    border: 2px solid var(--line-strong);
+    margin: 0 auto 8px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.stepper-node.active .dot {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.stepper-node .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.stepper-node.active .label { color: var(--ink); }
+
+.stepper-line {
+    position: absolute;
+    top: 17px;
+    left: calc(50% + 18px);
+    right: calc(-50% + 18px);
+    height: 2px;
+    background: var(--line-strong);
+    z-index: 0;
+}
+
+.stepper-node.active + .stepper-node .stepper-line {
+    background: var(--accent);
+}
+
+.tracking-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    margin-bottom: 28px;
+}
+
+.tracking-meta .label {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+}
+
+.tracking-meta .value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.tracking-items {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 24px;
+}
+
+.tracking-items li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 14px;
+}
+
+/* ---------- kitchen ---------- */
+.kitchen-section { margin-bottom: 40px; }
+
+.kitchen-section h2 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+}
+
+.kitchen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.kitchen-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.kitchen-card .order-id {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+}
+
+.kitchen-card .items {
+    font-size: 13px;
+    color: var(--ink-soft);
+}
+
+.kitchen-card .total {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.kitchen-card .address {
+    font-size: 12px;
+    color: var(--ink-mute);
+}
+
+.empty-state {
+    font-size: 13px;
+    color: var(--ink-mute);
+    padding: 24px;
+    text-align: center;
+    background: var(--bg-soft);
+    border-radius: var(--radius);
+}
+
+.badge-mode {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    background: var(--warn);
+    color: #fff;
+    border-radius: 4px;
+}
+
+/* ---------- toolbar ---------- */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.toolbar h1 {
+    font-size: 22px;
+    font-weight: 800;
+}

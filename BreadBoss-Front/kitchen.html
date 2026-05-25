@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BreadBoss · Cocina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">Bread Boss <span class="badge-mode">Cocina</span></div>
+      <nav class="nav">
+        <span class="email-pill" id="emailPill"></span>
+        <button class="btn btn-ghost" id="logoutBtn">Salir</button>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <h1>Tablero de cocina</h1>
+      <button class="btn" id="refreshBtn">Refrescar lista</button>
+    </div>
+
+    <section class="kitchen-section">
+      <h2>En preparación</h2>
+      <div class="kitchen-grid" id="prepGrid"></div>
+    </section>
+
+    <section class="kitchen-section">
+      <h2>En camino</h2>
+      <div class="kitchen-grid" id="enRouteGrid"></div>
+    </section>
+  </div>
+
+  <script>
+    BB_AUTH.requireAuth();
+
+    document.getElementById("emailPill").textContent = BB_AUTH.getEmail() || "";
+    document.getElementById("logoutBtn").addEventListener("click", () => BB_AUTH.logout());
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    function minutesAgo(timestamp) {
+      if (!timestamp) return "—";
+      const ms = Date.now() - Number(timestamp);
+      const mins = Math.floor(ms / 60000);
+      if (mins < 1) return "ahora";
+      return `${mins} min`;
+    }
+
+    function renderCard(order, actionLabel, actionFn) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      const itemsStr = items.map(it => `${it.name || it.itemId} × ${it.qty}`).join(", ");
+      const card = document.createElement("div");
+      card.className = "kitchen-card";
+      card.innerHTML = `
+        <div class="order-id">#${escapeHtml(String(order.orderId).slice(0, 8))} · hace ${minutesAgo(order.timestamp)}</div>
+        <div class="items">${escapeHtml(itemsStr)}</div>
+        <div class="total">$${Number(order.total || 0).toFixed(2)}</div>
+        <div class="address">${escapeHtml(order.deliveryAddress)}</div>
+        <button class="btn">${actionLabel}</button>
+      `;
+      const btn = card.querySelector("button");
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Procesando...";
+        try {
+          await actionFn(order.orderId);
+          card.style.opacity = "0.4";
+          btn.textContent = "Listo";
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = actionLabel;
+          alert("Error: " + e.message);
+        }
+      });
+      return card;
+    }
+
+    async function loadBoard() {
+      const refreshBtn = document.getElementById("refreshBtn");
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "Refrescando...";
+
+      const prep = document.getElementById("prepGrid");
+      const route = document.getElementById("enRouteGrid");
+      prep.innerHTML = "";
+      route.innerHTML = "";
+
+      try {
+        const [prepData, routeData] = await Promise.all([
+          BB_API.listOrdersByStatus("EN_PREPARACION"),
+          BB_API.listOrdersByStatus("EN_CAMINO"),
+        ]);
+
+        const prepItems = (prepData && prepData.items) || [];
+        const routeItems = (routeData && routeData.items) || [];
+
+        if (prepItems.length === 0) {
+          prep.innerHTML = '<div class="empty-state">No hay pedidos en preparación</div>';
+        } else {
+          prepItems.forEach(o => prep.appendChild(renderCard(o, "Listo para retirar", BB_API.markReady)));
+        }
+
+        if (routeItems.length === 0) {
+          route.innerHTML = '<div class="empty-state">No hay pedidos en camino</div>';
+        } else {
+          routeItems.forEach(o => route.appendChild(renderCard(o, "Marcar entregado", BB_API.deliverOrder)));
+        }
+      } catch (e) {
+        prep.innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = "Refrescar lista";
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", loadBoard);
+    loadBoard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BreadBoss · Seguimiento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">Bread Boss</div>
+      <nav class="nav">
+        <a href="menu.html">Menú</a>
+        <a href="tracking.html">Mis pedidos</a>
+        <span class="email-pill" id="emailPill"></span>
+        <button class="btn btn-ghost" id="logoutBtn">Salir</button>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <h1>Seguimiento del pedido</h1>
+      <button class="btn" id="refreshBtn">Actualizar estado</button>
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+  <script>
+    BB_AUTH.requireAuth();
+
+    document.getElementById("emailPill").textContent = BB_AUTH.getEmail() || "";
+    document.getElementById("logoutBtn").addEventListener("click", () => BB_AUTH.logout());
+
+    const STATES = ["RECIBIDO", "EN_PREPARACION", "EN_CAMINO", "ENTREGADO"];
+    const LABELS = {
+      "RECIBIDO": "Recibido",
+      "EN_PREPARACION": "En preparación",
+      "EN_CAMINO": "En camino",
+      "ENTREGADO": "Entregado",
+    };
+
+    function getOrderIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("orderId") || localStorage.getItem("bb_last_order_id");
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    function renderEmpty() {
+      document.getElementById("content").innerHTML = `
+        <div class="empty-state">
+          No tenés pedidos recientes. <a href="menu.html">Hacé uno ahora</a>.
+        </div>
+      `;
+    }
+
+    function renderOrder(order) {
+      const currentIdx = STATES.indexOf(order.status);
+      const stepperHtml = STATES.map((s, i) => `
+        <div class="stepper-node ${i <= currentIdx ? "active" : ""}">
+          ${i > 0 ? '<div class="stepper-line"></div>' : ""}
+          <div class="dot">${i + 1}</div>
+          <div class="label">${LABELS[s]}</div>
+        </div>
+      `).join("");
+
+      const items = Array.isArray(order.items) ? order.items : [];
+      const itemsHtml = items.map(it => `
+        <li>
+          <span>${escapeHtml(it.name || it.itemId)} × ${escapeHtml(it.qty)}</span>
+          <span>$${Number(it.price || 0).toFixed(2)}</span>
+        </li>
+      `).join("");
+
+      const tiempo = order.tiempo_entrega_min ? `${order.tiempo_entrega_min} min` : "—";
+
+      document.getElementById("content").innerHTML = `
+        <div class="tracking-card">
+          <div class="order-id">Pedido ${escapeHtml(order.orderId)}</div>
+          <div class="current-status">${LABELS[order.status] || order.status}</div>
+          <div class="stepper">${stepperHtml}</div>
+          <div class="tracking-meta">
+            <div>
+              <div class="label">Total</div>
+              <div class="value">$${Number(order.total || 0).toFixed(2)}</div>
+            </div>
+            <div>
+              <div class="label">Dirección</div>
+              <div class="value">${escapeHtml(order.deliveryAddress)}</div>
+            </div>
+            <div>
+              <div class="label">Tiempo de entrega</div>
+              <div class="value">${tiempo}</div>
+            </div>
+          </div>
+          <ul class="tracking-items">${itemsHtml}</ul>
+        </div>
+      `;
+    }
+
+    async function loadOrder() {
+      const orderId = getOrderIdFromUrl();
+      if (!orderId) {
+        renderEmpty();
+        return;
+      }
+      const btn = document.getElementById("refreshBtn");
+      btn.disabled = true;
+      btn.textContent = "Actualizando...";
+      try {
+        const order = await BB_API.getOrder(orderId);
+        renderOrder(order);
+      } catch (e) {
+        document.getElementById("content").innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Actualizar estado";
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", loadOrder);
+    loadOrder();
+  </script>
+</body>
+</html>
