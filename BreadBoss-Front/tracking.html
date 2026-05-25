@@ -67,7 +67,7 @@
       const currentIdx = STATES.indexOf(order.status);
       const stepperHtml = STATES.map((s, i) => `
         <div class="stepper-node ${i <= currentIdx ? "active" : ""}">
-          ${i > 0 ? '<div class="stepper-line"></div>' : ""}
+          <div class="stepper-line"></div>
           <div class="dot">${i + 1}</div>
           <div class="label">${LABELS[s]}</div>
         </div>
