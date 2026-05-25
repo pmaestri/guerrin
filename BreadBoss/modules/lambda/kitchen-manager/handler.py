@@ -8,8 +8,6 @@ import time
 import boto3
 import redis
 from boto3.dynamodb.conditions import Key
-from confluent_kafka import Producer
-from aws_msk_iam_sasl_signer.MSKAuthTokenProvider import generate_auth_token
 
 sys.path.insert(0, "/var/task/shared")
 from idempotency import already_processed  # noqa: E402
@@ -21,13 +19,6 @@ dynamodb = boto3.resource("dynamodb")
 orders_table = dynamodb.Table(os.environ.get("ORDERS_TABLE", "breadboss-orders"))
 
 _redis = None
-_producer = None
-
-
-def _oauth_cb(oauth_config):
-    region = os.environ.get("AWS_REGION_NAME", os.environ.get("AWS_REGION", "us-east-1"))
-    token, expiry_ms = generate_auth_token(region)
-    return token, expiry_ms / 1000
 
 
 def get_redis():
@@ -35,18 +26,6 @@ def get_redis():
     if _redis is None:
         _redis = redis.Redis(host=os.environ["REDIS_HOST"], port=6379, ssl=True)
     return _redis
-
-
-def get_producer():
-    global _producer
-    if _producer is None:
-        _producer = Producer({
-            "bootstrap.servers": os.environ["MSK_BOOTSTRAP"],
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanism": "OAUTHBEARER",
-            "oauth_cb": _oauth_cb,
-        })
-    return _producer
 
 
 def _update_dynamo_status(order_id, status):
@@ -69,7 +48,6 @@ def _update_dynamo_status(order_id, status):
 
 def handler(event, context):
     r = get_redis()
-    producer = get_producer()
 
     for records in event["records"].values():
         for record in records:
@@ -91,23 +69,6 @@ def handler(event, context):
 
             _update_dynamo_status(order_id, "EN_PREPARACION")
 
-            producer.produce(
-                "orders.ready",
-                key=order_id.encode(),
-                value=json.dumps({
-                    "eventType": "ORDER_READY",
-                    "timestamp": now_ms,
-                    "data": {
-                        "orderId": order_id,
-                        "customerId": data.get("customerId"),
-                        "customerEmail": data.get("customerEmail", ""),
-                        "total": data.get("total"),
-                        "status": "LISTO",
-                    },
-                }).encode(),
-            )
+            logger.info(json.dumps({"orderId": order_id, "handler": "kitchen-manager", "msg": "EN_PREPARACION — esperando confirmacion manual"}))
 
-            logger.info(json.dumps({"orderId": order_id, "handler": "kitchen-manager", "msg": "EN_PREPARACION, ORDER_READY publicado"}))
-
-    producer.flush()
     return {"statusCode": 200}

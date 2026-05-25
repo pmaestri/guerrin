@@ -128,3 +128,36 @@ resource "aws_lambda_permission" "menu_reader" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
+
+# --- order-ready (POST /orders/{orderId}/ready) ---
+resource "aws_apigatewayv2_integration" "order_ready" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.order_ready_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "ready_order" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /orders/{orderId}/ready"
+  target             = "integrations/${aws_apigatewayv2_integration.order_ready.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_lambda_permission" "order_ready" {
+  statement_id  = "AllowAPIGatewayInvokeOrderReady"
+  action        = "lambda:InvokeFunction"
+  function_name = var.order_ready_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+# --- GET /orders (lista por status, mismo Lambda que GET /orders/{orderId}) ---
+resource "aws_apigatewayv2_route" "list_orders" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /orders"
+  target             = "integrations/${aws_apigatewayv2_integration.order_reader.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}

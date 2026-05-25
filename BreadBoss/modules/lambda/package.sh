@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PACKAGED=("ingress" "kitchen-manager" "delivery-tracker" "stock-updater" "notifier")
+PACKAGED=("ingress" "kitchen-manager" "delivery-tracker" "stock-updater" "notifier" "order-ready")
 
 for lambda in "${PACKAGED[@]}"; do
   echo "Empaquetando $lambda..."
