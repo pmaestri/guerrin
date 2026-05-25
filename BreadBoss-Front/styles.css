@@ -713,19 +713,15 @@ html, body {
 .stepper-line {
     position: absolute;
     top: 17px;
-    left: calc(50% + 18px);
-    right: calc(-50% + 18px);
+    right: calc(50% + 18px);
+    left: calc(-50% + 18px);
     height: 2px;
     background: var(--line-strong);
     z-index: 0;
 }
 
-.stepper-node.active + .stepper-node .stepper-line {
+.stepper-node.active .stepper-line {
     background: var(--accent);
-}
-
-.stepper-node:last-child .stepper-line {
-    display: none;
 }
 
 .tracking-meta {
