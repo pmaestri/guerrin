@@ -20,3 +20,5 @@ output "order_reader_arn" { value = aws_lambda_function.this["order-reader"].arn
 output "order_reader_name" { value = aws_lambda_function.this["order-reader"].function_name }
 output "menu_reader_arn" { value = aws_lambda_function.this["menu-reader"].arn }
 output "menu_reader_name" { value = aws_lambda_function.this["menu-reader"].function_name }
+output "order_ready_arn" { value = aws_lambda_function.this["order-ready"].arn }
+output "order_ready_name" { value = aws_lambda_function.this["order-ready"].function_name }

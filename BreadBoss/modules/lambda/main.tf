@@ -7,7 +7,7 @@ locals {
 
   # Lambdas con dependencias externas (kafka, redis): requieren pip install previo.
   # El zip se construye con package.sh y Terraform lo referencia ya construido.
-  packaged_functions = toset(["ingress", "kitchen-manager", "delivery-tracker", "stock-updater", "notifier"])
+  packaged_functions = toset(["ingress", "kitchen-manager", "delivery-tracker", "stock-updater", "notifier", "order-ready"])
 
   functions = {
     ingress = {
@@ -52,12 +52,15 @@ locals {
     menu-reader = {
       env_extras = { MENU_TABLE = var.menu_table_name }
     }
+    order-ready = {
+      env_extras = { ORDERS_TABLE = var.orders_table_name }
+    }
   }
 
   # Consumers del topic "pedidos" (ORDER_CREATED)
   consumers_orders_created = ["order-processor", "kitchen-manager", "stock-updater", "notifier"]
 
-  # Consumers del topic "orders.ready" (ORDER_READY — publicado por kitchen-manager)
+  # Consumers del topic "orders.ready" (ORDER_READY — publicado por order-ready via API)
   consumers_orders_ready = ["delivery-tracker", "notifier"]
 }
 
