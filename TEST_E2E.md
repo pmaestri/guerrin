@@ -86,10 +86,10 @@ Todos los consumers usan idempotencia via tabla `breadboss-processed` (TTL 24h).
 - [x] **Paso 6h** — DynamoDB `breadboss-orders` tiene el item con `customerEmail`
 - [x] **Paso 6i** — DynamoDB `breadboss-menu` bajó el stock de los items pedidos
 - [x] **Paso 6j** — DynamoDB `breadboss-processed` tiene entradas por cada consumer
-- [ ] **Paso 6k** — `GET /orders?status=EN_PREPARACION` devuelve el pedido recién creado
-- [ ] **Paso 6l** — `POST /orders/{id}/ready` responde `200` con `status: LISTO`
-- [ ] **Paso 6m** — `GET /orders/{id}` retorna `status: EN_CAMINO` tras unos segundos
-- [ ] **Paso 6n** — Segunda llamada a `/ready` devuelve `{"message": "Ya estaba marcado"}` (idempotencia OK)
+- [x] **Paso 6k** — `GET /orders?status=EN_PREPARACION` devuelve el pedido recién creado
+- [x] **Paso 6l** — `POST /orders/{id}/ready` responde `200` con `status: LISTO`
+- [x] **Paso 6m** — `GET /orders/{id}` retorna `status: EN_CAMINO` tras unos segundos
+- [x] **Paso 6n** — Segunda llamada a `/ready` devuelve `{"message": "Ya estaba marcado"}` (idempotencia OK)
 - [x] **Paso 7** — `POST /orders/{id}/deliver` responde con `status: ENTREGADO` y `tiempo_entrega_min`
 - [x] **Paso 8** — Segunda llamada a `/deliver` devuelve el mismo resultado (idempotencia OK)
 
