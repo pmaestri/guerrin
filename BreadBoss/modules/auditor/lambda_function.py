@@ -9,8 +9,21 @@ from collections import Counter
 
 # ── HANDLER PRINCIPAL ──────────────────────────────────────────────────────────
 
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin":  "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+}
+
 def lambda_handler(event, context):
-    fecha = event.get("fecha") or datetime.now().strftime("%Y-%m-%d")
+    # Soporte para invocación vía HTTP (Function URL) y directa (EventBridge/test)
+    qs = event.get("queryStringParameters") or {}
+    fecha = qs.get("fecha") or event.get("fecha") or datetime.now().strftime("%Y-%m-%d")
+
+    # Preflight CORS
+    if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+        return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
+
     openai_key = os.environ.get("OPENAI_API_KEY")
     orders_table = os.environ.get("ORDERS_TABLE", "breadboss-orders")
     resumenes_table = os.environ.get("RESUMENES_TABLE", "breadboss_resumenes")
@@ -18,15 +31,25 @@ def lambda_handler(event, context):
     umbral_min = int(os.environ.get("ENTREGA_UMBRAL_MIN", "45"))
 
     if not openai_key:
-        return {"statusCode": 500, "body": "Falta OPENAI_API_KEY en variables de entorno"}
+        return {"statusCode": 500, "headers": CORS_HEADERS, "body": "Falta OPENAI_API_KEY en variables de entorno"}
 
     dynamodb = boto3.resource("dynamodb")
+
+    # Cache: si ya existe el reporte del día, devolverlo sin llamar a OpenAI
+    reporte_existente = _get_reporte_guardado(dynamodb, resumenes_table, metricas_table, fecha)
+    if reporte_existente:
+        return {
+            "statusCode": 200,
+            "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
+            "body": json.dumps(reporte_existente, ensure_ascii=False),
+        }
+
     table = dynamodb.Table(orders_table)
 
     # Pedidos del día
     pedidos = _query_by_fecha(table, fecha)
     if not pedidos:
-        return {"statusCode": 404, "body": f"No hay pedidos para la fecha {fecha}"}
+        return {"statusCode": 404, "headers": CORS_HEADERS, "body": f"No hay pedidos para la fecha {fecha}"}
 
     # Pedidos de la semana anterior (para tendencia)
     fecha_anterior = (datetime.strptime(fecha, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -38,12 +61,34 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
+        "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
         "body": json.dumps({
             "fecha": fecha,
             "resumen": resumen_ai,
             "metricas": _to_json_safe(metricas)
         }, ensure_ascii=False)
     }
+
+
+# ── CACHE: leer reporte ya guardado ───────────────────────────────────────────
+
+def _get_reporte_guardado(dynamodb, resumenes_table, metricas_table, fecha):
+    try:
+        r = dynamodb.Table(resumenes_table).get_item(Key={"fecha": fecha})
+        m = dynamodb.Table(metricas_table).get_item(Key={"fecha": fecha})
+        resumen = r.get("Item", {}).get("resumen")
+        metricas = m.get("Item")
+        if resumen and metricas:
+            metricas.pop("fecha", None)
+            metricas.pop("generado_en", None)
+            return {
+                "fecha":    fecha,
+                "resumen":  resumen,
+                "metricas": _to_json_safe(metricas),
+            }
+    except Exception:
+        pass
+    return None
 
 
 # ── QUERY DYNAMODB ─────────────────────────────────────────────────────────────

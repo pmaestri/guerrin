@@ -18,24 +18,22 @@
             <div class="hero-left">
                 <p class="eyebrow">DASHBOARD ANALÍTICO</p>
                 <h1 class="hero-title">
-                    UNA<br/>
-                    COCINA.<br/>
-                    CUATRO<br/>
-                    FRENTES.
+                    BREAD<br/>
+                    BOSS.
                 </h1>
                 <p class="hero-sub">
-                    Bread Boss es una dark kitchen 100% digital. Opera sin salón físico
-                    y concentra pedidos desde cuatro canales digitales que deben coordinar
-                    cocina, stock, delivery y atención al cliente en tiempo real.
+                    Panel de métricas operativas, financieras y de calidad.
+                    Incluye pedidos, tiempos de entrega, revenue por canal
+                    y análisis automático generado por inteligencia artificial.
                 </p>
             </div>
 
             <div class="hero-right">
                 <div class="kpi-grid">
                     <div class="kpi-card">
-                        <p class="kpi-value">12.400</p>
-                        <p class="kpi-label">PEDIDOS / MES</p>
-                        <p class="kpi-delta positive">+38% YoY</p>
+                        <p class="kpi-value" id="kpi-pedidos">—</p>
+                        <p class="kpi-label" id="kpi-pedidos-label">PEDIDOS DEL DÍA</p>
+                        <p class="kpi-delta positive" id="kpi-pedidos-delta">—</p>
                     </div>
                     <div class="kpi-card">
                         <p class="kpi-value">4</p>
@@ -43,18 +41,43 @@
                         <p class="kpi-delta">App · Web · WA · Marketplaces</p>
                     </div>
                     <div class="kpi-card">
-                        <p class="kpi-value">23 min</p>
+                        <p class="kpi-value" id="kpi-entrega">— min</p>
                         <p class="kpi-label">ENTREGA PROMEDIO</p>
-                        <p class="kpi-delta positive">−18% vs 2024</p>
+                        <p class="kpi-delta positive" id="kpi-entrega-delta">—</p>
                     </div>
                     <div class="kpi-card">
-                        <p class="kpi-value">×5</p>
-                        <p class="kpi-label">PICO VIERNES 21H</p>
-                        <p class="kpi-delta">vs volumen promedio</p>
+                        <p class="kpi-value" id="kpi-hora-pico">—</p>
+                        <p class="kpi-label">HORA PICO</p>
+                        <p class="kpi-delta" id="kpi-hora-pico-sub">vs volumen promedio</p>
                     </div>
                 </div>
             </div>
         </header>
+
+        <!-- ============ INDICADOR FUENTE + SELECTOR DE FECHA ============ -->
+        <div style="
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 20px; font-family: 'Inter', sans-serif;
+            border-bottom: 1px solid #D9CFC0;
+        ">
+            <div id="data-source-banner" style="display:flex; align-items:center; gap:8px;">
+                <span id="data-source-dot" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span>
+                <span id="data-source-text" style="font-size:11px;font-weight:600;letter-spacing:0.05em;"></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label for="fecha-picker" style="font-size:11px;font-weight:600;color:#8A7866;letter-spacing:0.05em;">VER FECHA</label>
+                <input type="date" id="fecha-picker" style="
+                    font-family:'Inter',sans-serif; font-size:12px; font-weight:500;
+                    border:1px solid #D9CFC0; border-radius:4px; padding:5px 10px;
+                    background:#EFE6D7; color:#2A1810; cursor:pointer;
+                "/>
+                <button onclick="cargarFecha()" style="
+                    font-family:'Inter',sans-serif; font-size:11px; font-weight:700;
+                    background:#6B3E2C; color:#EFE6D7; border:none; border-radius:4px;
+                    padding:6px 14px; cursor:pointer; letter-spacing:0.05em;
+                ">CARGAR</button>
+            </div>
+        </div>
 
         <!-- ============ AGENTE IA ============ -->
         <section class="agent-section">
@@ -77,7 +100,7 @@
                 <div class="card chart-card large">
                     <div class="card-head">
                         <h3>Pedidos por hora</h3>
-                        <span class="badge">PICO 21:00</span>
+                        <span class="badge" id="badge-hora-pico">PICO —</span>
                     </div>
                     <p class="card-sub">Distribución horaria del último día operativo</p>
                     <div class="chart-wrap tall"><canvas id="ordersByHour"></canvas></div>
@@ -105,7 +128,7 @@
                 <div class="card chart-card">
                     <div class="card-head">
                         <h3>Tasa de incidencias</h3>
-                        <span class="badge">6.2%</span>
+                        <span class="badge" id="badge-incidencias">—%</span>
                     </div>
                     <p class="card-sub">Pedidos con algún problema reportado</p>
                     <div class="chart-wrap"><canvas id="incidenceRate"></canvas></div>
@@ -131,20 +154,20 @@
             <div class="grid-revenue">
                 <div class="card revenue-hero">
                     <p class="kpi-label dark">REVENUE DEL DÍA</p>
-                    <p class="revenue-main">$ 1.847.320</p>
-                    <p class="kpi-delta positive">+12.4% vs ayer · +28% vs mismo día semana pasada</p>
+                    <p class="revenue-main" id="revenue-total">$ —</p>
+                    <p class="kpi-delta positive" id="revenue-delta">—</p>
                     <div class="revenue-meta">
                         <div>
-                            <span class="meta-num">$ 7.430</span>
+                            <span class="meta-num" id="ticket-promedio">$ —</span>
                             <span class="meta-lab">TICKET PROMEDIO</span>
                         </div>
                         <div>
-                            <span class="meta-num">248</span>
-                            <span class="meta-lab">PEDIDOS PAGADOS</span>
+                            <span class="meta-num" id="pedidos-pagados">—</span>
+                            <span class="meta-lab">PEDIDOS ENTREGADOS</span>
                         </div>
                         <div>
-                            <span class="meta-num">$ 18.900</span>
-                            <span class="meta-lab">TICKET MÁX</span>
+                            <span class="meta-num" id="tasa-cancelacion">—%</span>
+                            <span class="meta-lab">TASA CANCELACIÓN</span>
                         </div>
                     </div>
                 </div>
@@ -170,9 +193,9 @@
                 <div class="card chart-card">
                     <div class="card-head">
                         <h3>Entregas a tiempo</h3>
-                        <span class="badge ok">87%</span>
+                        <span class="badge ok" id="badge-on-time">—%</span>
                     </div>
-                    <p class="card-sub">Pedidos entregados &lt; 30 min</p>
+                    <p class="card-sub" id="card-sub-on-time">Pedidos entregados a tiempo</p>
                     <div class="chart-wrap small"><canvas id="onTimeRate"></canvas></div>
                 </div>
 
@@ -195,7 +218,7 @@
         </section>
 
         <!-- ============ TENDENCIAS ============ -->
-        <section class="block">
+        <section class="block" style="display:none;">
             <div class="block-header">
                 <p class="eyebrow">TENDENCIAS</p>
                 <h2 class="section-title">Comparativa histórica</h2>
@@ -205,7 +228,7 @@
                 <div class="card chart-card">
                     <div class="card-head">
                         <h3>Hoy vs mismo día, semana anterior</h3>
-                        <span class="badge ok">+28%</span>
+                        <span class="badge ok" id="badge-tendencia-pedidos">—%</span>
                     </div>
                     <p class="card-sub">Volumen de pedidos por hora</p>
                     <div class="chart-wrap tall"><canvas id="weekCompare"></canvas></div>
