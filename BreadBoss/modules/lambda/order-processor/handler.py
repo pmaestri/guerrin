@@ -4,6 +4,7 @@ import base64
 import os
 import time
 from decimal import Decimal
+from datetime import datetime, timezone
 
 import boto3
 
@@ -33,6 +34,8 @@ def handler(event, context):
                 "items":           [{**i, "price": Decimal(str(i["price"]))} for i in data["items"]],
                 "total":           Decimal(str(data["total"])),
                 "deliveryAddress": data["deliveryAddress"],
+                "fecha":           datetime.fromtimestamp(created_at / 1000, tz=timezone.utc).strftime("%Y-%m-%d"),
+                "incidencia":      "ninguna",
                 "timestamps": {
                     "received": payload["timestamp"]
                 },
