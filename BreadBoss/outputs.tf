@@ -27,3 +27,13 @@ output "cloudwatch_dashboard_url" {
   description = "URL directa al dashboard de CloudWatch"
   value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home#dashboards:name=${module.cloudwatch.dashboard_name}"
 }
+
+output "cloudfront_url" {
+  description = "URL pública del frontend (CloudFront)"
+  value       = module.frontend.cloudfront_url
+}
+
+output "frontend_bucket" {
+  description = "Nombre del bucket S3 donde se suben los archivos estáticos"
+  value       = module.frontend.bucket_name
+}
