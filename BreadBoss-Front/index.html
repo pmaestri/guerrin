@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
 </head>
@@ -15,6 +17,21 @@
 
         <!-- ============ HEADER ============ -->
         <header class="hero">
+            <div class="hero-auth" style="
+                position:absolute; top:16px; right:20px;
+                display:flex; align-items:center; gap:10px;
+                font-family:'Inter',sans-serif;
+            ">
+                <span class="email-pill" id="emailPill" style="
+                    font-size:11px; font-weight:600; color:#8A7866;
+                    background:#EFE6D7; padding:4px 10px; border-radius:20px;
+                "></span>
+                <button id="logoutBtn" style="
+                    font-family:'Inter',sans-serif; font-size:11px; font-weight:700;
+                    background:transparent; color:#6B3E2C; border:1px solid #C99776;
+                    border-radius:4px; padding:5px 12px; cursor:pointer; letter-spacing:0.05em;
+                ">SALIR</button>
+            </div>
             <div class="hero-left">
                 <p class="eyebrow">DASHBOARD ANALÍTICO</p>
                 <h1 class="hero-title">

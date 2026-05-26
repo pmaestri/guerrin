@@ -617,6 +617,11 @@ async function fetchDashboard(fecha = null) {
     renderDashboard(MOCK_DATA);
 }
 
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+BB_AUTH.requireAuth();
+document.getElementById('emailPill').textContent = BB_AUTH.getEmail() || '';
+document.getElementById('logoutBtn').addEventListener('click', () => BB_AUTH.logout());
+
 // ── SELECTOR DE FECHA ─────────────────────────────────────────────────────────
 function cargarFecha() {
     const picker = document.getElementById('fecha-picker');
