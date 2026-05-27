@@ -4,7 +4,7 @@
    ============================================================ */
 
 // ── ENDPOINT ───────────────────────────────────────────────────────────────────
-const API_ENDPOINT = 'https://wby3osqbd4.execute-api.us-east-1.amazonaws.com/auditor';
+const API_ENDPOINT = 'https://hvwo8db0c8.execute-api.us-east-1.amazonaws.com/auditor';
 
 // ── PALETA ────────────────────────────────────────────────────────────────────
 const palette = {
